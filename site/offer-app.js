@@ -14,7 +14,7 @@ const AGENTS=[
 const agentById=Object.fromEntries(AGENTS.map(a=>[a.id,a]));
 let hierarchy=JSON.parse(localStorage.getItem('offer-hierarchy')||'null')||{AG01:['AG02','AG03']};
 let products=[],clients=[],dataMeta={},items=[],catalogLimit=80;
-let companyProfile={companyName:'',displayName:'',vatNumber:'',taxCode:'',address:'',postalCode:'',city:'Firenze',province:'FI',country:'',email:'',pec:'',phone:'',website:'',sdiCode:'',iban:'',logoFileName:'',footerText:'',legalNotes:'',currency:'EUR',defaultVat:22,offerValidityDays:30,ordersEmail:'info@climawell.it'};
+let companyProfile={companyName:'',displayName:'',vatNumber:'',taxCode:'',address:'',postalCode:'',city:'',province:'',country:'',email:'',pec:'',phone:'',website:'',sdiCode:'',iban:'',logoFileName:'',footerText:'',legalNotes:'',currency:'EUR',defaultVat:22,offerValidityDays:30,ordersEmail:''};
 // Configurazione dinamica aziendale
 async function loadCompanyConfiguration(){
  try{
