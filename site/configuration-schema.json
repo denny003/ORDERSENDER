@@ -1,0 +1,11 @@
+{
+  "companyProfile": "Dati anagrafici azienda",
+  "googleDrive": {
+    "sourceClientsFolder": "",
+    "sourceProductsFolder": "",
+    "sourceAgentsFolder": "",
+    "repositoryFolder": "",
+    "registerSpreadsheetId": "",
+    "registerFileName": "Registro offerte e ordini"
+  }
+}
