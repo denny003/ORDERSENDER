@@ -1,0 +1,12 @@
+<!doctype html><html><body><h1>Configurazione aziendale</h1>
+<label>Ragione sociale</label><input id='companyName'><br>
+<label>Cartella clienti Google Drive</label><input id='clientsFolder'><br>
+<label>Cartella articoli Google Drive</label><input id='productsFolder'><br>
+<label>Cartella agenti Google Drive</label><input id='agentsFolder'><br>
+<label>Repository Google Drive</label><input id='repositoryFolder'><br>
+<label>ID Registro offerte e ordini</label><input id='spreadsheetId'><br>
+<button onclick='save()'>Salva</button>
+<script>
+function save(){localStorage.setItem('company-config',JSON.stringify({
+companyName:companyName.value,googleDrive:{clientsFolder:clientsFolder.value,productsFolder:productsFolder.value,agentsFolder:agentsFolder.value,repositoryFolder:repositoryFolder.value,spreadsheetId:spreadsheetId.value}}));alert('Configurazione salvata')}
+</script></body></html>
