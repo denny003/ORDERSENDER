@@ -1,35 +1,20 @@
 const AGENTS=[
- {id:'AG01',name:'AGENTE001',source:'AGENTE001',head:true},
- {id:'AG02',name:'AGENTE002',source:'AGENTE002'},
- {id:'AG03',name:'AGENTE003',source:'AGENTE003'},
- {id:'AG04',name:'AGENTE004',source:'AGENTE004'},
- {id:'AG05',name:'AGENTE005',source:'AGENTE005'},
- {id:'AG06',name:'AGENTE006',source:'AGENTE006'},
- {id:'AG07',name:'AGENTE007',source:'AGENTE007'},
- {id:'AG08',name:'AGENTE008',source:'AGENTE008'},
- {id:'AG09',name:'AGENTE009',source:'AGENTE009'},
- {id:'AG10',name:'AGENTE010',source:'AGENTE010'},
- {id:'AG11',name:'AGENTE011',source:'AGENTE011'}
+ {id:'AG01',name:'Federico Micozzi',source:'FEDERICO MICOZZI (335/182.82.54)',head:true},
+ {id:'AG02',name:'Francesco Pontrelli',source:'FRANCESCO PONTRELLI'},
+ {id:'AG03',name:'Savino De Palma',source:'SAVINO DE PALMA ( 329/68.80.018 )'},
+ {id:'AG04',name:'Giorgio Fabris',source:'GIORGIO FABRIS'},
+ {id:'AG05',name:'Francesco Poli',source:'POLI FRANCESCO 349.177.09.01'},
+ {id:'AG06',name:'Francesco Gelsumini',source:'FRANCESCO GELSUMINI'},
+ {id:'AG07',name:'Andrea Tirella',source:'TIRELLA ANDREA'},
+ {id:'AG08',name:'Vincenzo Antonio Richetta',source:'RICHETTA VINCENZO ANTONIO'},
+ {id:'AG09',name:'Daniele Rigamonti',source:'DANIELE RIGAMONTI'},
+ {id:'AG10',name:'Maurizio Maltinti',source:'MALTINTI MAURIZIO'},
+ {id:'AG11',name:'Andrea Rygiewicz',source:'CSJ ANDRZEJ RYGIEWICZ (ANDREA)'}
 ];
 const agentById=Object.fromEntries(AGENTS.map(a=>[a.id,a]));
 let hierarchy=JSON.parse(localStorage.getItem('offer-hierarchy')||'null')||{AG01:['AG02','AG03']};
 let products=[],clients=[],dataMeta={},items=[],catalogLimit=80;
-let companyProfile={companyName:'',displayName:'',vatNumber:'',taxCode:'',address:'',postalCode:'',city:'',province:'',country:'',email:'',pec:'',phone:'',website:'',sdiCode:'',iban:'',logoFileName:'',footerText:'',legalNotes:'',currency:'EUR',defaultVat:22,offerValidityDays:30,ordersEmail:''};
-// Configurazione dinamica aziendale
-async function loadCompanyConfiguration(){
- try{
-  const saved=JSON.parse(localStorage.getItem('company-config')||'null');
-  if(saved) companyProfile={...companyProfile,...saved};
-  const r=await fetch('/api/settings');
-  if(r.ok){
-    const cfg=await r.json();
-    companyProfile={...companyProfile,...(cfg.company||cfg.companyProfile||cfg)};
-    localStorage.setItem('company-config',JSON.stringify(companyProfile));
-  }
- }catch(e){ console.warn('Configurazione aziendale non disponibile',e); }
-}
-window.loadCompanyConfiguration=loadCompanyConfiguration;
-
+let companyProfile={companyName:'',displayName:'',vatNumber:'',taxCode:'',address:'',postalCode:'',city:'',province:'',country:'Italia',email:'',pec:'',phone:'',website:'',sdiCode:'',iban:'',logoFileName:'',footerText:'',legalNotes:'',currency:'EUR',defaultVat:22,offerValidityDays:30,ordersEmail:''};
 let documentType=new URLSearchParams(location.search).get('type')==='order'?'order':'offer';
 const euro=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'});
 const num=new Intl.NumberFormat('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -102,5 +87,3 @@ async function applyImports(event){event.preventDefault();$('importStatus').text
 function bindEvents(){$('productSearch').onfocus=e=>renderProducts(e.target.value);$('productSearch').oninput=e=>renderProducts(e.target.value);document.addEventListener('click',e=>{if(!e.target.closest('.product-picker'))$('productResults').classList.add('hidden')});$('customerSelect').onchange=showCustomer;$('roleSelect').onchange=updateRoleView;$('catalogBtn').onclick=()=>{$('catalogPanel').classList.remove('hidden');catalogLimit=80;renderCatalog()};$('closeCatalog').onclick=()=>$('catalogPanel').classList.add('hidden');['sectorFilter','macroFilter','familyFilter','brandFilter'].forEach(id=>$(id).onchange=()=>{catalogLimit=80;updateFilters(id);renderCatalog()});$('loadMoreCatalog').onclick=()=>{catalogLimit+=80;renderCatalog()};['validity','payment','shipping'].forEach(id=>$(id).addEventListener('change',persistOffer));$('notes').oninput=persistOffer;$('saveBtn').onclick=()=>{persistOffer();toast('Bozza salvata sul dispositivo')};$('excelBtn').onclick=exportExcel;$('printBtn').onclick=()=>{if(!canExport())return;buildPrintOffer();window.print()};$('submitBtn').onclick=submitOffer;$('newCustomerBtn').onclick=()=>$('customerDialog').showModal();$('confirmCustomer').onclick=e=>{e.preventDefault();const name=$('newCustomerName').value.trim(),city=$('newCustomerCity').value.trim(),address=$('newCustomerAddress').value.trim(),agentId=$('assignedAgent').value;if(!name||!city)return;const customer={id:`LOCAL-${Date.now()}`,name,city,address,agentId,sourceAgent:agentById[agentId].source,phone:'',mobile:'',email:'',postalCode:'',province:'',activity:'',activityCode:''};clients.push(customer);renderCustomers(customer.id);$('customerDialog').close();$('customerForm').reset();dbSet('dataset',{meta:dataMeta,articles:products,clients}).catch(()=>{});toast('Cliente salvato e assegnato')};$('dataBtn').onclick=async()=>{await loadCompanyProfile();renderDataDialog();$('dataDialog').showModal();toast('Dati aziendali aggiornati')};$('applyImport').onclick=applyImports}
 async function start(){const params=new URLSearchParams(location.search);documentType=params.get('type')==='order'?'order':'offer';$('documentTitle').textContent=documentType==='order'?'ORDINE CLIENTE':'OFFERTA CLIENTE';$('grandLabel').textContent=documentType==='order'?'TOTALE ORDINE':'TOTALE OFFERTA';$('submitBtn').textContent=documentType==='order'?'Invia ordine':'Invia offerta';$('documentDate').value=new Date().toLocaleDateString('it-IT');document.title=documentType==='order'?'Nuovo ordine':'Nuova offerta';if(params.get('new')==='1'){localStorage.removeItem('offer-demo');localStorage.removeItem(documentType==='order'?'order-numbers':'offer-numbers')}roleOptions();bindEvents();$('syncLabel').textContent='Caricamento dati…';try{await Promise.all([loadData(),loadCompanyProfile()]);updateFilters();restoreOffer();updateRoleView();renderOffer();renderCatalog();renderCompanyProfile();$('syncLabel').textContent=navigator.onLine?'Dati disponibili offline':'Modalità offline';$('offerCode').textContent=offerNumber()}catch(error){console.error(error);$('syncLabel').textContent='Errore caricamento dati';toast(error.message||'Impossibile caricare l’archivio dati')}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'});window.addEventListener('offline',()=>{$('syncLabel').textContent='Modalità offline';toast('Sei offline: dati e bozze restano disponibili')});window.addEventListener('online',()=>{$('syncLabel').textContent='Dati disponibili offline';toast('Connessione ripristinata');flushOutbox()});start();if(navigator.onLine)flushOutbox();
-
-window.addEventListener('load',()=>loadCompanyConfiguration());
