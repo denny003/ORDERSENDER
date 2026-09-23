@@ -1,20 +1,20 @@
 const AGENTS=[
- {id:'AG01',name:'Federico Micozzi',source:'FEDERICO MICOZZI (335/182.82.54)',head:true},
- {id:'AG02',name:'Francesco Pontrelli',source:'FRANCESCO PONTRELLI'},
- {id:'AG03',name:'Savino De Palma',source:'SAVINO DE PALMA ( 329/68.80.018 )'},
- {id:'AG04',name:'Giorgio Fabris',source:'GIORGIO FABRIS'},
- {id:'AG05',name:'Francesco Poli',source:'POLI FRANCESCO 349.177.09.01'},
- {id:'AG06',name:'Francesco Gelsumini',source:'FRANCESCO GELSUMINI'},
- {id:'AG07',name:'Andrea Tirella',source:'TIRELLA ANDREA'},
- {id:'AG08',name:'Vincenzo Antonio Richetta',source:'RICHETTA VINCENZO ANTONIO'},
- {id:'AG09',name:'Daniele Rigamonti',source:'DANIELE RIGAMONTI'},
- {id:'AG10',name:'Maurizio Maltinti',source:'MALTINTI MAURIZIO'},
- {id:'AG11',name:'Andrea Rygiewicz',source:'CSJ ANDRZEJ RYGIEWICZ (ANDREA)'}
+ {id:'AG01',name:'AGENTE001',source:'AGENTE001',head:true},
+ {id:'AG02',name:'AGENTE002',source:'AGENTE002'},
+ {id:'AG03',name:'AGENTE003',source:'AGENTE003'},
+ {id:'AG04',name:'AGENTE004',source:'AGENTE004'},
+ {id:'AG05',name:'AGENTE005',source:'AGENTE005'},
+ {id:'AG06',name:'AGENTE006',source:'AGENTE006'},
+ {id:'AG07',name:'AGENTE007',source:'AGENTE007'},
+ {id:'AG08',name:'AGENTE008',source:'AGENTE008'},
+ {id:'AG09',name:'AGENTE009',source:'AGENTE009'},
+ {id:'AG10',name:'AGENTE010',source:'AGENTE010'},
+ {id:'AG11',name:'AGENTE011',source:'AGENTE011'}
 ];
 const agentById=Object.fromEntries(AGENTS.map(a=>[a.id,a]));
 let hierarchy=JSON.parse(localStorage.getItem('offer-hierarchy')||'null')||{AG01:['AG02','AG03']};
 let products=[],clients=[],dataMeta={},items=[],catalogLimit=80;
-let companyProfile={companyName:'',displayName:'',vatNumber:'',taxCode:'',address:'',postalCode:'50127',city:'Firenze',province:'FI',country:'Italia',email:'info@climawell.it',pec:'',phone:'055-42.89.074',website:'',sdiCode:'',iban:'',logoFileName:'',footerText:'',legalNotes:'',currency:'EUR',defaultVat:22,offerValidityDays:30,ordersEmail:'info@climawell.it'};
+let companyProfile={companyName:'',displayName:'',vatNumber:'',taxCode:'',address:'',postalCode:'',city:'Firenze',province:'FI',country:'',email:'',pec:'',phone:'',website:'',sdiCode:'',iban:'',logoFileName:'',footerText:'',legalNotes:'',currency:'EUR',defaultVat:22,offerValidityDays:30,ordersEmail:'info@climawell.it'};
 // Configurazione dinamica aziendale
 async function loadCompanyConfiguration(){
  try{
