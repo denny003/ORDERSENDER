@@ -1,6 +1,6 @@
 const AGENTS=[
- {id:'AG01',name:'Federico Micozzi',source:'FEDERICO MICOZZI (335/182.82.54)',head:true},
- {id:'AG02',name:'Francesco Pontrelli',source:'FRANCESCO PONTRELLI'},
+ {id:'AG01',name:'agente001',source:'agente001)',head:true},
+ {id:'AG02',name:'agente002',source:'agente002'},
  {id:'AG03',name:'Savino De Palma',source:'SAVINO DE PALMA ( 329/68.80.018 )'},
  {id:'AG04',name:'Giorgio Fabris',source:'GIORGIO FABRIS'},
  {id:'AG05',name:'Francesco Poli',source:'POLI FRANCESCO 349.177.09.01'},
