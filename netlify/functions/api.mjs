@@ -327,19 +327,21 @@ async function fetchAgentsData(customId, customTab) {
       if (agents.length > 0) {
         return { ok: true, source: 'google-sheets', count: agents.length, agents, hierarchy };
       }
+      return { ok: false, source: 'google-sheets', error: `Nessuna riga valida trovata nella scheda "${tab}"`, count: 0 };
     }
+    return { ok: false, source: 'google-sheets', error: `Intestazione con "Codice agente" non trovata nella scheda "${tab}"`, count: 0 };
   } catch (err) {
     console.warn('Google Sheets agents read error:', err.message);
+    const seed = await loadSeed();
+    return {
+      ok: false,
+      source: 'offline-cache',
+      error: err.message,
+      count: (seed.agents || []).length,
+      agents: seed.agents || [],
+      hierarchy: seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] }
+    };
   }
-
-  const seed = await loadSeed();
-  return {
-    ok: true,
-    source: 'offline-cache',
-    count: (seed.agents || []).length,
-    agents: seed.agents || [],
-    hierarchy: seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] }
-  };
 }
 
 // 3. Fetch Customers
@@ -396,17 +398,18 @@ async function fetchCustomersData(customId, customTab, user = null) {
         }
         return { ok: true, source: 'google-sheets', count: customers.length, customers };
       }
+      return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" vuota o senza righe valide`, count: 0 };
     }
+    return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" non trovata o senza intestazione`, count: 0 };
   } catch (err) {
     console.warn('Google Sheets customers read error:', err.message);
+    const seed = await loadSeed();
+    let customers = seed.clients || [];
+    if (user && user.role !== 'admin' && user.role !== 'area_head') {
+      customers = customers.filter(c => c.agentId === user.agentCode || c.sourceAgent === user.agentCode);
+    }
+    return { ok: false, source: 'offline-cache', error: err.message, count: customers.length, customers };
   }
-
-  const seed = await loadSeed();
-  let customers = seed.clients || [];
-  if (user && user.role !== 'admin' && user.role !== 'area_head') {
-    customers = customers.filter(c => c.agentId === user.agentCode || c.sourceAgent === user.agentCode);
-  }
-  return { ok: true, source: 'offline-cache', count: customers.length, customers };
 }
 
 // 4. Fetch Products
@@ -468,13 +471,14 @@ async function fetchProductsData(customId, customTab) {
       if (products.length > 0) {
         return { ok: true, source: 'google-sheets', count: products.length, products };
       }
+      return { ok: false, source: 'google-sheets', error: `Nessun articolo valido trovato nella scheda "${tab}"`, count: 0 };
     }
+    return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" non trovata o senza intestazione`, count: 0 };
   } catch (err) {
     console.warn('Google Sheets products read error:', err.message);
+    const seed = await loadSeed();
+    return { ok: false, source: 'offline-cache', error: err.message, count: (seed.articles || []).length, products: seed.articles || [] };
   }
-
-  const seed = await loadSeed();
-  return { ok: true, source: 'offline-cache', count: (seed.articles || []).length, products: seed.articles || [] };
 }
 
 // 5. Diagnostics Runner
@@ -577,13 +581,14 @@ async function runDiagnostics(testCfg = {}) {
           details: `Foglio ID: ${cfg.agentsId} · Tab: ${cfg.agentsTab}`
         };
       } else {
+        const isWrongSheet = agRes.error && (agRes.error.includes('Unable to parse range') || agRes.error.includes('not found') || agRes.error.includes('permission'));
         results.agents = {
           status: 'error',
           icon: '🔴',
           label: 'Nessun record',
           count: 0,
-          message: 'Nessun agente trovato nella scheda specificata',
-          details: `Verificare le intestazioni della riga 6 del foglio "${cfg.agentsTab}"`
+          message: agRes.error || 'Nessun agente trovato nella scheda specificata',
+          details: isWrongSheet ? `Scheda "${cfg.agentsTab}" non trovata nel foglio ID ${cfg.agentsId}. Inserire lo Spreadsheet ID del file "Anagrafica_Agenti"` : (agRes.error || `Verificare ID foglio e tab "${cfg.agentsTab}"`)
         };
       }
     } catch (err) {
@@ -621,13 +626,14 @@ async function runDiagnostics(testCfg = {}) {
           details: `Foglio ID: ${cfg.customersId} · Tab: ${cfg.customersTab}`
         };
       } else {
+        const isWrongSheet = clRes.error && (clRes.error.includes('Unable to parse range') || clRes.error.includes('not found') || clRes.error.includes('permission'));
         results.customers = {
           status: 'error',
           icon: '🔴',
           label: 'Nessun cliente',
           count: 0,
-          message: 'Nessun cliente rilevato nel foglio',
-          details: `Foglio ID: ${cfg.customersId} · Tab: ${cfg.customersTab}`
+          message: clRes.error || 'Nessun cliente rilevato nel foglio',
+          details: isWrongSheet ? `Scheda "${cfg.customersTab}" non trovata nel foglio ID ${cfg.customersId}. Inserire lo Spreadsheet ID del file "clienti"` : (clRes.error || `Foglio ID: ${cfg.customersId} · Tab: ${cfg.customersTab}`)
         };
       }
     } catch (err) {
@@ -665,13 +671,14 @@ async function runDiagnostics(testCfg = {}) {
           details: `Foglio ID: ${cfg.productsId} · Tab: ${cfg.productsTab}`
         };
       } else {
+        const isWrongSheet = prRes.error && (prRes.error.includes('Unable to parse range') || prRes.error.includes('not found') || prRes.error.includes('permission'));
         results.products = {
           status: 'error',
           icon: '🔴',
           label: 'Nessun articolo',
           count: 0,
-          message: 'Nessun articolo rilevato nel foglio',
-          details: `Foglio ID: ${cfg.productsId} · Tab: ${cfg.productsTab}`
+          message: prRes.error || 'Nessun articolo rilevato nel foglio',
+          details: isWrongSheet ? `Scheda "${cfg.productsTab}" non trovata nel foglio ID ${cfg.productsId}. Inserire lo Spreadsheet ID del file "Articoli"` : (prRes.error || `Foglio ID: ${cfg.productsId} · Tab: ${cfg.productsTab}`)
         };
       }
     } catch (err) {
@@ -733,15 +740,23 @@ async function runDiagnostics(testCfg = {}) {
 // 6. Repository Register
 const registerHeaders = ['id', 'number', 'submitted_at', 'updated_at', 'agent_code', 'agent_name', 'customer_id', 'customer_name', 'total', 'currency', 'status', 'version', 'payload_json'];
 
-function objects(rows) {
-  const h = rows[0] || [];
-  return rows.slice(1).map(r => Object.fromEntries(h.map((k, i) => [k, r[i] ?? ''])));
+function parseTotal(raw) {
+  if (typeof raw === 'number') return raw;
+  if (!raw) return 0;
+  const cleaned = String(raw).replace(/[^0-9,.-]/g, '').replace(',', '.');
+  const val = parseFloat(cleaned);
+  return Number.isFinite(val) ? val : 0;
+}
+
+function cleanCell(val) {
+  if (val == null) return '';
+  return String(val).trim().replace(/^["']|["']$/g, '');
 }
 
 async function ensureHeader(tab, headers, customRegId) {
   const regId = customRegId || runtimeConfig.repository.spreadsheetId;
-  const current = await readRange(regId, `'${tab}'!A1:Z1`);
-  if (!current.length) {
+  const current = await readRange(regId, `'${tab}'!A1:Z5`);
+  if (!current.length || !current.some(r => r && r.length > 0)) {
     await append(regId, `'${tab}'!A1`, [headers]);
   }
 }
@@ -749,12 +764,122 @@ async function ensureHeader(tab, headers, customRegId) {
 async function listDocs(tab, user) {
   const regId = runtimeConfig.repository.spreadsheetId;
   try {
-    await ensureHeader(tab, registerHeaders, regId);
-    let rows = objects(await readRange(regId, `'${tab}'!A1:M1000`));
-    if (user && user.role !== 'admin' && user.role !== 'area_head') {
-      rows = rows.filter(x => normalizeAgentId(x.agent_code) === normalizeAgentId(user.agentCode));
+    const rawRows = await readRange(regId, `'${tab}'!A1:Z1000`);
+    if (!rawRows || !rawRows.length) return [];
+
+    // Dynamically locate header row within first 10 rows
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+      const line = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+      if (
+        line.includes('id') ||
+        line.includes('id record') ||
+        line.some(c => c.includes('numero documento') || c.includes('numero ordine') || c.includes('codice agente') || c.includes('submitted_at'))
+      ) {
+        headerIdx = i;
+        break;
+      }
     }
-    return rows.map(x => (tab === 'Offerte' ? { ...x, offer_number: x.number } : { ...x, order_number: x.number }));
+
+    if (headerIdx < 0) {
+      headerIdx = 0;
+    }
+
+    const header = (rawRows[headerIdx] || []).map(c => String(c || '').toLowerCase().trim());
+    const findCol = (patterns, excludes = []) => {
+      for (let k = 0; k < header.length; k++) {
+        const h = header[k];
+        const match = patterns.some(p => h === p || h.includes(p));
+        if (match && !excludes.some(ex => h.includes(ex))) {
+          return k;
+        }
+      }
+      return -1;
+    };
+
+    const idIdx = findCol(['id record', 'id']);
+    const numIdx = findCol(['numero documento', 'numero ordine', 'number'], ['id']);
+    const subIdx = findCol(['data invio', 'submitted_at', 'data']);
+    const updIdx = findCol(['ultimo aggiornamento', 'updated_at']);
+    const agCodeIdx = findCol(['codice agente', 'agent_code']);
+    const agNameIdx = findCol(['agente', 'agent_name', 'nome agente'], ['codice']);
+    const custIdIdx = findCol(['codice cliente', 'customer_id']);
+    const custNameIdx = findCol(['ragione sociale', 'cliente', 'customer_name'], ['codice']);
+    const totalIdx = findCol(['totale', 'total', 'importo', 'imponibile']);
+    const currIdx = findCol(['valuta', 'currency']);
+    const statusIdx = findCol(['stato applicazione', 'stato avanzamento', 'status']);
+    const outcomeIdx = findCol(['esito azienda', 'esito', 'decisione']);
+    const verIdx = findCol(['versione', 'version']);
+    const notesIdx = findCol(['nota azienda', 'note operative', 'note', 'payload_json']);
+    const origOfferIdx = findCol(['id offerta origine', 'offerta origine']);
+
+    // Allowed agents for user role
+    const userRole = user?.role || 'agent';
+    const userAgentCode = normalizeAgentId(user?.agentCode || '');
+    const allowedAgents = new Set();
+    if (userRole !== 'admin') {
+      if (userAgentCode) allowedAgents.add(userAgentCode);
+      const seed = await loadSeed();
+      const hier = seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
+      if (hier[userAgentCode]) {
+        for (const sub of hier[userAgentCode]) allowedAgents.add(normalizeAgentId(sub));
+      }
+    }
+
+    const docs = [];
+    for (let i = headerIdx + 1; i < rawRows.length; i++) {
+      const r = rawRows[i];
+      if (!r || !r.some(cell => String(cell || '').trim())) continue;
+
+      const id = idIdx >= 0 && r[idIdx] != null ? cleanCell(r[idIdx]) : '';
+      const num = numIdx >= 0 && r[numIdx] != null ? cleanCell(r[numIdx]) : '';
+      if (!id && !num) continue;
+
+      const agCode = agCodeIdx >= 0 && r[agCodeIdx] != null ? normalizeAgentId(r[agCodeIdx]) : '';
+      if (userRole !== 'admin' && allowedAgents.size > 0 && agCode && !allowedAgents.has(agCode)) {
+        continue;
+      }
+
+      const total = totalIdx >= 0 ? parseTotal(r[totalIdx]) : 0;
+      const subAt = subIdx >= 0 && r[subIdx] != null ? cleanCell(r[subIdx]) : '';
+      const updAt = updIdx >= 0 && r[updIdx] != null ? cleanCell(r[updIdx]) : '';
+      const agName = agNameIdx >= 0 && r[agNameIdx] != null ? cleanCell(r[agNameIdx]) : (knownAgentNames[agCode] || (agCode ? `Agente ${agCode}` : ''));
+      const custId = custIdIdx >= 0 && r[custIdIdx] != null ? cleanCell(r[custIdIdx]) : '';
+      const custName = custNameIdx >= 0 && r[custNameIdx] != null ? cleanCell(r[custNameIdx]) : '';
+      const curr = currIdx >= 0 && r[currIdx] != null ? cleanCell(r[currIdx]) : 'EUR';
+      const outcome = outcomeIdx >= 0 && r[outcomeIdx] != null ? cleanCell(r[outcomeIdx]) : '';
+      const rawStatus = statusIdx >= 0 && r[statusIdx] != null ? cleanCell(r[statusIdx]) : '';
+      const status = outcome || rawStatus || 'Registrato';
+      const version = verIdx >= 0 && r[verIdx] != null ? cleanCell(r[verIdx]) : '1';
+      const notes = notesIdx >= 0 && r[notesIdx] != null ? cleanCell(r[notesIdx]) : '';
+      const originOffer = origOfferIdx >= 0 && r[origOfferIdx] != null ? cleanCell(r[origOfferIdx]) : '';
+
+      docs.push({
+        id: id || num,
+        number: num,
+        offer_number: tab === 'Offerte' ? num : undefined,
+        order_number: tab === 'Ordini' ? num : undefined,
+        offerNumber: tab === 'Offerte' ? num : undefined,
+        orderNumber: tab === 'Ordini' ? num : undefined,
+        submitted_at: subAt,
+        updated_at: updAt || subAt,
+        agent_code: agCode,
+        agent_name: agName,
+        customer_id: custId,
+        customer_name: custName,
+        customerName: custName,
+        total,
+        currency: curr || 'EUR',
+        status,
+        raw_status: rawStatus,
+        outcome,
+        version,
+        notes,
+        origin_offer_id: originOffer
+      });
+    }
+
+    return docs;
   } catch (err) {
     console.warn(`Error reading ${tab} from Google Sheets:`, err.message);
     return [];
@@ -763,32 +888,132 @@ async function listDocs(tab, user) {
 
 async function createDoc(tab, body, user) {
   const regId = runtimeConfig.repository.spreadsheetId;
-  await ensureHeader(tab, registerHeaders, regId);
   const number = body.offerNumber || body.orderNumber;
   const id = body.id || crypto.randomUUID();
   if (!number || !body.customerName) {
     return json(400, { error: 'Dati incompleti (manca numero documento o ragione sociale cliente)' });
   }
+
   const now = new Date().toISOString();
   const agentCode = normalizeAgentId(user?.agentCode || body.agentCode || 'AG01');
-  const agentName = user?.name || body.agentName || 'Agente';
-  const row = [
-    id,
-    number,
-    now,
-    now,
-    agentCode,
-    agentName,
-    body.customerId || '',
-    body.customerName,
-    Number(body.total) || 0,
-    'EUR',
-    'submitted',
-    1,
-    JSON.stringify(body.payload || {})
-  ];
-  await append(regId, `'${tab}'!A:M`, [row]);
-  return json(201, { ok: true, id, number, timestamp: now });
+  const agentName = user?.name || body.agentName || knownAgentNames[agentCode] || 'Agente';
+  const customerId = String(body.customerId || '').trim();
+  const customerName = String(body.customerName || '').trim();
+  const total = Number(body.total) || 0;
+  const payloadStr = JSON.stringify(body.payload || {});
+
+  try {
+    const rawRows = await readRange(regId, `'${tab}'!A1:Z10`);
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+      const line = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+      if (
+        line.includes('id') ||
+        line.includes('id record') ||
+        line.some(c => c.includes('numero documento') || c.includes('numero ordine') || c.includes('codice agente'))
+      ) {
+        headerIdx = i;
+        break;
+      }
+    }
+
+    let row;
+    if (headerIdx >= 0) {
+      const header = (rawRows[headerIdx] || []).map(c => String(c || '').toLowerCase().trim());
+      const isOfficialTemplate = header.some(h => h.includes('esito azienda') || h.includes('stato avanzamento') || h.includes('id record'));
+
+      if (isOfficialTemplate) {
+        if (tab === 'Offerte') {
+          row = [
+            id,
+            number,
+            now,
+            now,
+            agentCode,
+            agentName,
+            customerId,
+            customerName,
+            total,
+            'EUR',
+            'submitted',
+            1.0,
+            'Da valutare',
+            '',
+            '',
+            'No',
+            now,
+            payloadStr
+          ];
+        } else {
+          row = [
+            id,
+            number,
+            body.originOfferId || '',
+            now,
+            now,
+            agentCode,
+            agentName,
+            customerId,
+            customerName,
+            total,
+            'EUR',
+            'submitted',
+            1.0,
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            'No',
+            now
+          ];
+        }
+      } else {
+        row = [
+          id,
+          number,
+          now,
+          now,
+          agentCode,
+          agentName,
+          customerId,
+          customerName,
+          total,
+          'EUR',
+          'submitted',
+          1,
+          payloadStr
+        ];
+      }
+    } else {
+      await ensureHeader(tab, registerHeaders, regId);
+      row = [
+        id,
+        number,
+        now,
+        now,
+        agentCode,
+        agentName,
+        customerId,
+        customerName,
+        total,
+        'EUR',
+        'submitted',
+        1,
+        payloadStr
+      ];
+    }
+
+    await append(regId, `'${tab}'!A:Z`, [row]);
+    return json(201, { ok: true, id, number, timestamp: now });
+  } catch (err) {
+    console.error(`Error saving ${tab} to Google Sheets:`, err);
+    return json(500, { error: `Errore salvataggio su Google Sheets: ${err.message}` });
+  }
 }
 
 // Netlify Function Entry Point
