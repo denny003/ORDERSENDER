@@ -12,6 +12,11 @@
   to = "/offerta.html"
   status = 200
 
+[[redirects]]
+  from = "/configurazione"
+  to = "/configurazione.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

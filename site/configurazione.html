@@ -1,12 +1,446 @@
-<!doctype html><html><body><h1>Configurazione aziendale</h1>
-<label>Ragione sociale</label><input id='companyName'><br>
-<label>Cartella clienti Google Drive</label><input id='clientsFolder'><br>
-<label>Cartella articoli Google Drive</label><input id='productsFolder'><br>
-<label>Cartella agenti Google Drive</label><input id='agentsFolder'><br>
-<label>Repository Google Drive</label><input id='repositoryFolder'><br>
-<label>ID Registro offerte e ordini</label><input id='spreadsheetId'><br>
-<button onclick='save()'>Salva</button>
-<script>
-function save(){localStorage.setItem('company-config',JSON.stringify({
-companyName:companyName.value,googleDrive:{clientsFolder:clientsFolder.value,productsFolder:productsFolder.value,agentsFolder:agentsFolder.value,repositoryFolder:repositoryFolder.value,spreadsheetId:spreadsheetId.value}}));alert('Configurazione salvata')}
-</script></body></html>
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configurazione Google Drive & Sheets — Offerte Agenti</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .config-shell { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+    .config-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px; }
+    .config-title h1 { font-size: 1.7rem; margin: 0 0 4px; color: var(--navy); }
+    .config-title p { margin: 0; color: var(--muted); font-size: .92rem; }
+    
+    /* Diagnostics Panel */
+    .diag-card { background: #0c2940; color: #fff; border-radius: 16px; padding: 24px; margin-bottom: 28px; box-shadow: 0 10px 30px rgba(12,41,64,.25); }
+    .diag-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,.12); padding-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+    .diag-head h2 { font-size: 1.15rem; letter-spacing: .06em; text-transform: uppercase; color: #bde4ff; margin: 0; display: flex; align-items: center; gap: 10px; }
+    .diag-badge { background: rgba(255,255,255,.12); padding: 4px 10px; border-radius: 20px; font-size: .78rem; font-weight: 600; color: #e1f0fa; }
+    .diag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; }
+    .diag-box { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 14px; transition: all .2s ease; }
+    .diag-box:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
+    .diag-box small { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: #9bc2dc; margin-bottom: 6px; }
+    .diag-status { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 750; }
+    .diag-status .dot { font-size: 1.1rem; }
+    .diag-details { display: block; margin-top: 6px; font-size: .75rem; color: #c4dcee; word-break: break-word; line-height: 1.3; }
+
+    /* Form Layout */
+    .section-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 22px; box-shadow: var(--shadow); }
+    .section-card h3 { margin: 0 0 4px; font-size: 1.15rem; color: var(--navy); display: flex; align-items: center; gap: 10px; }
+    .section-card p { margin: 0 0 16px; color: var(--muted); font-size: .86rem; }
+    .fields-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .field label { font-size: .82rem; font-weight: 700; color: #41535e; margin-bottom: 6px; display: block; }
+    .field input { width: 100%; border: 1px solid #cfdbe1; border-radius: 8px; padding: 10px 12px; font-size: .9rem; font-family: monospace; background: #fafcfe; }
+    .field input:focus { border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px rgba(32,118,181,.12); }
+    .field input.text-val { font-family: inherit; }
+
+    /* Drive Architecture Box */
+    .arch-box { background: #f0f6fa; border: 1px dashed #abc5d8; border-radius: 12px; padding: 16px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .arch-tree { font-family: monospace; font-size: .84rem; color: #1e3a52; line-height: 1.5; margin: 0; }
+    
+    .actions-bar { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; position: sticky; bottom: 16px; background: rgba(243,246,248,.92); backdrop-filter: blur(8px); padding: 12px; border-radius: 14px; border: 1px solid var(--line); }
+    .btn-green { background: #16835b; color: #fff; }
+    .btn-green:hover { background: #126e4c; }
+    .note-box { font-size: .82rem; color: var(--muted); background: #f8fafb; border-left: 3px solid var(--blue); padding: 10px 14px; margin-top: 14px; border-radius: 0 8px 8px 0; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">OA</span>
+      <div>
+        <strong>Offerte Agenti</strong>
+        <small>Pannello Amministrazione</small>
+      </div>
+    </div>
+    <div class="heading-actions">
+      <a class="btn secondary" href="/">← Torna alle pratiche</a>
+      <a class="btn secondary" href="/offerta?new=1&type=offer">Nuova offerta</a>
+    </div>
+  </header>
+
+  <main class="config-shell">
+    <div class="config-header">
+      <div class="config-title">
+        <h1>Configurazione Google Drive & Fogli</h1>
+        <p>Gestione unificata delle origini dati cloud e del registro centrale offerte/ordini</p>
+      </div>
+      <div>
+        <button id="btnCheckNow" class="btn secondary">🔄 Verifica connessioni</button>
+      </div>
+    </div>
+
+    <!-- PANNELLO DIAGNOSTICO AMMINISTRATORE -->
+    <section class="diag-card">
+      <div class="diag-head">
+        <h2><span>⚡</span> CONTROLLO CONNESSIONI</h2>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="diagLastRun" class="diag-badge">In attesa di verifica…</span>
+          <button id="btnDiagRefresh" class="btn secondary" style="padding:6px 12px; font-size:.8rem; background:rgba(255,255,255,.15); color:#fff; border:0;">Aggiorna</button>
+        </div>
+      </div>
+
+      <div class="diag-grid">
+        <!-- 1. Google Sheets API -->
+        <div class="diag-box">
+          <small>Google Sheets API</small>
+          <div class="diag-status" id="diagGoogle">
+            <span class="dot">⏳</span>
+            <span class="val">In attesa…</span>
+          </div>
+          <span class="diag-details" id="diagGoogleDetails">Inizializzazione test</span>
+        </div>
+
+        <!-- 2. Dati Azienda -->
+        <div class="diag-box">
+          <small>Dati Azienda</small>
+          <div class="diag-status" id="diagCompany">
+            <span class="dot">⏳</span>
+            <span class="val">In attesa…</span>
+          </div>
+          <span class="diag-details" id="diagCompanyDetails">Verifica scheda azienda</span>
+        </div>
+
+        <!-- 3. Agenti -->
+        <div class="diag-box">
+          <small>Agenti</small>
+          <div class="diag-status" id="diagAgents">
+            <span class="dot">⏳</span>
+            <span class="val">In attesa…</span>
+          </div>
+          <span class="diag-details" id="diagAgentsDetails">Verifica anagrafica agenti</span>
+        </div>
+
+        <!-- 4. Clienti -->
+        <div class="diag-box">
+          <small>Clienti</small>
+          <div class="diag-status" id="diagCustomers">
+            <span class="dot">⏳</span>
+            <span class="val">In attesa…</span>
+          </div>
+          <span class="diag-details" id="diagCustomersDetails">Verifica lista clienti</span>
+        </div>
+
+        <!-- 5. Articoli -->
+        <div class="diag-box">
+          <small>Articoli</small>
+          <div class="diag-status" id="diagProducts">
+            <span class="dot">⏳</span>
+            <span class="val">In attesa…</span>
+          </div>
+          <span class="diag-details" id="diagProductsDetails">Verifica listino articoli</span>
+        </div>
+
+        <!-- 6. Repository -->
+        <div class="diag-box">
+          <small>Repository</small>
+          <div class="diag-status" id="diagRepository">
+            <span class="dot">⏳</span>
+            <span class="val">In attesa…</span>
+          </div>
+          <span class="diag-details" id="diagRepositoryDetails">Verifica schede Offerte e Ordini</span>
+        </div>
+      </div>
+
+      <div class="note-box" style="background:rgba(255,255,255,.08); color:#bfe1f7; border-left-color:#38bdf8; margin-top:16px;">
+        💡 <strong>Credenziali Netlify:</strong> Le credenziali dell'account di servizio Google (<code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code> e <code>GOOGLE_PRIVATE_KEY</code>) rimangono protette nelle variabili d'ambiente di Netlify. I fogli Google Drive devono essere condivisi con l'e-mail dell'account di servizio (in sola lettura per i cataloghi, come <em>Editor</em> per il Repository).
+      </div>
+    </section>
+
+    <!-- ARCHITETTURA GOOGLE DRIVE -->
+    <div class="arch-box">
+      <div>
+        <strong style="color:var(--navy); display:block; margin-bottom:4px;">Architettura Google Drive condiviso</strong>
+        <pre class="arch-tree">Google Drive condiviso (Cartella: 1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9)
+├── Dati_Azienda_e_Mandanti (Google Sheet)
+├── Anagrafica_Agenti (Google Sheet)
+├── clienti (Google Sheet)
+├── Articoli (Google Sheet)
+└── Repository
+      └── Registro offerte e ordini (Google Sheet)</pre>
+      </div>
+      <div>
+        <a class="btn secondary" href="https://drive.google.com/drive/folders/1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9" target="_blank" rel="noopener">Apri cartella Google Drive ↗</a>
+      </div>
+    </div>
+
+    <!-- SEZIONE AZIENDA -->
+    <section class="section-card">
+      <h3>🏢 Azienda</h3>
+      <p>Parametri del foglio contenente i dati aziendali, intestazioni documenti, note legali e mandanti.</p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="companySheetName">Nome Google Sheet</label>
+          <input id="companySheetName" class="text-val" placeholder="Dati_Azienda_e_Mandanti">
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label for="companySpreadsheetId">Spreadsheet ID</label>
+          <input id="companySpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+        </div>
+        <div class="field">
+          <label for="companyTab">Nome tab</label>
+          <input id="companyTab" class="text-val" placeholder="Dati azienda">
+        </div>
+      </div>
+    </section>
+
+    <!-- SEZIONE AGENTI -->
+    <section class="section-card">
+      <h3>👥 Agenti</h3>
+      <p>Anagrafica agenti, permessi operativi, capi area e gerarchie di visibilità.</p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="agentsFileName">Nome file</label>
+          <input id="agentsFileName" class="text-val" placeholder="Anagrafica_Agenti">
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label for="agentsSpreadsheetId">Spreadsheet ID</label>
+          <input id="agentsSpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+        </div>
+        <div class="field">
+          <label for="agentsTab">Tab</label>
+          <input id="agentsTab" class="text-val" placeholder="Agenti">
+        </div>
+      </div>
+    </section>
+
+    <!-- SEZIONE CLIENTI -->
+    <section class="section-card">
+      <h3>🏪 Clienti</h3>
+      <p>Elenco anagrafica clienti con abbinamento per codice agente e attività.</p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="customersFileName">Nome file</label>
+          <input id="customersFileName" class="text-val" placeholder="clienti">
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label for="customersSpreadsheetId">Spreadsheet ID</label>
+          <input id="customersSpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+        </div>
+        <div class="field">
+          <label for="customersTab">Tab</label>
+          <input id="customersTab" class="text-val" placeholder="clienti">
+        </div>
+      </div>
+    </section>
+
+    <!-- SEZIONE ARTICOLI -->
+    <section class="section-card">
+      <h3>📦 Articoli</h3>
+      <p>Listino catalogo con codici, prezzi, disponibilità a magazzino, foto e sconti massimi.</p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="productsFileName">Nome file</label>
+          <input id="productsFileName" class="text-val" placeholder="Articoli">
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label for="productsSpreadsheetId">Spreadsheet ID</label>
+          <input id="productsSpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+        </div>
+        <div class="field">
+          <label for="productsTab">Tab</label>
+          <input id="productsTab" class="text-val" placeholder="q_listino_prezzi_catalogo">
+        </div>
+      </div>
+    </section>
+
+    <!-- SEZIONE REPOSITORY -->
+    <section class="section-card">
+      <h3>📑 Repository (Offerte e Ordini)</h3>
+      <p>Cartella e foglio centrale di registrazione in cui vengono archiviate tutte le offerte e gli ordini inviati dagli agenti.</p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="repositoryFolder">Cartella Repository</label>
+          <input id="repositoryFolder" class="text-val" placeholder="Repository">
+        </div>
+        <div class="field">
+          <label for="registerFileName">Nome file</label>
+          <input id="registerFileName" class="text-val" placeholder="Registro offerte e ordini">
+        </div>
+        <div class="field" style="grid-column: span 2;">
+          <label for="registerSpreadsheetId">Spreadsheet ID "Registro offerte e ordini"</label>
+          <input id="registerSpreadsheetId" placeholder="1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4">
+        </div>
+        <div class="field">
+          <label for="registerTabOffers">Tab Offerte</label>
+          <input id="registerTabOffers" class="text-val" placeholder="Offerte">
+        </div>
+        <div class="field">
+          <label for="registerTabOrders">Tab Ordini</label>
+          <input id="registerTabOrders" class="text-val" placeholder="Ordini">
+        </div>
+      </div>
+    </section>
+
+    <div class="actions-bar">
+      <button id="btnReset" class="btn secondary">Ripristina valori iniziali</button>
+      <button id="btnSave" class="btn primary btn-green">💾 Salva configurazione</button>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="/config/companyConfig.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const toast = (msg) => {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2600);
+    };
+
+    function populateForm(cfg) {
+      // Azienda
+      $('companySheetName').value = cfg.company?.sheetName || 'Dati_Azienda_e_Mandanti';
+      $('companySpreadsheetId').value = cfg.company?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('companyTab').value = cfg.company?.tab || 'Dati azienda';
+
+      // Agenti
+      $('agentsFileName').value = cfg.agents?.fileName || 'Anagrafica_Agenti';
+      $('agentsSpreadsheetId').value = cfg.agents?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('agentsTab').value = cfg.agents?.tab || 'Agenti';
+
+      // Clienti
+      $('customersFileName').value = cfg.customers?.fileName || 'clienti';
+      $('customersSpreadsheetId').value = cfg.customers?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('customersTab').value = cfg.customers?.tab || 'clienti';
+
+      // Articoli
+      $('productsFileName').value = cfg.products?.fileName || 'Articoli';
+      $('productsSpreadsheetId').value = cfg.products?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('productsTab').value = cfg.products?.tab || 'q_listino_prezzi_catalogo';
+
+      // Repository
+      $('repositoryFolder').value = cfg.repository?.folder || 'Repository';
+      $('registerFileName').value = cfg.repository?.fileName || 'Registro offerte e ordini';
+      $('registerSpreadsheetId').value = cfg.repository?.spreadsheetId || '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4';
+      $('registerTabOffers').value = cfg.repository?.tabOffers || 'Offerte';
+      $('registerTabOrders').value = cfg.repository?.tabOrders || 'Ordini';
+    }
+
+    function readForm() {
+      return {
+        company: {
+          sheetName: $('companySheetName').value.trim(),
+          spreadsheetId: $('companySpreadsheetId').value.trim(),
+          tab: $('companyTab').value.trim()
+        },
+        agents: {
+          fileName: $('agentsFileName').value.trim(),
+          spreadsheetId: $('agentsSpreadsheetId').value.trim(),
+          tab: $('agentsTab').value.trim()
+        },
+        customers: {
+          fileName: $('customersFileName').value.trim(),
+          spreadsheetId: $('customersSpreadsheetId').value.trim(),
+          tab: $('customersTab').value.trim()
+        },
+        products: {
+          fileName: $('productsFileName').value.trim(),
+          spreadsheetId: $('productsSpreadsheetId').value.trim(),
+          tab: $('productsTab').value.trim()
+        },
+        repository: {
+          folder: $('repositoryFolder').value.trim(),
+          fileName: $('registerFileName').value.trim(),
+          spreadsheetId: $('registerSpreadsheetId').value.trim(),
+          tabOffers: $('registerTabOffers').value.trim(),
+          tabOrders: $('registerTabOrders').value.trim()
+        }
+      };
+    }
+
+    async function checkDiagnostics() {
+      $('diagLastRun').textContent = 'Verifica in corso…';
+      setPending('diagGoogle', 'diagGoogleDetails');
+      setPending('diagCompany', 'diagCompanyDetails');
+      setPending('diagAgents', 'diagAgentsDetails');
+      setPending('diagCustomers', 'diagCustomersDetails');
+      setPending('diagProducts', 'diagProductsDetails');
+      setPending('diagRepository', 'diagRepositoryDetails');
+
+      const formCfg = readForm();
+      try {
+        const res = await fetch('/api/diagnostics', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            companyId: formCfg.company.spreadsheetId,
+            companyTab: formCfg.company.tab,
+            agentsId: formCfg.agents.spreadsheetId,
+            agentsTab: formCfg.agents.tab,
+            customersId: formCfg.customers.spreadsheetId,
+            customersTab: formCfg.customers.tab,
+            productsId: formCfg.products.spreadsheetId,
+            productsTab: formCfg.products.tab,
+            registerId: formCfg.repository.spreadsheetId,
+            registerTabOffers: formCfg.repository.tabOffers,
+            registerTabOrders: formCfg.repository.tabOrders
+          })
+        });
+
+        const data = await res.json();
+        const d = data.diagnostics || {};
+
+        applyDiag('diagGoogle', 'diagGoogleDetails', d.googleSheetsApi);
+        applyDiag('diagCompany', 'diagCompanyDetails', d.company);
+        applyDiag('diagAgents', 'diagAgentsDetails', d.agents);
+        applyDiag('diagCustomers', 'diagCustomersDetails', d.customers);
+        applyDiag('diagProducts', 'diagProductsDetails', d.products);
+        applyDiag('diagRepository', 'diagRepositoryDetails', d.repository);
+
+        const time = new Date().toLocaleTimeString('it-IT');
+        $('diagLastRun').textContent = `Verificato alle ${time}`;
+      } catch (err) {
+        console.error(err);
+        $('diagLastRun').textContent = 'Errore verifica';
+        toast('Errore durante il controllo connessioni');
+      }
+    }
+
+    function setPending(statusId, detailsId) {
+      $(statusId).querySelector('.dot').textContent = '⏳';
+      $(statusId).querySelector('.val').textContent = 'Verifica…';
+      $(detailsId).textContent = 'Connessione al servizio…';
+    }
+
+    function applyDiag(statusId, detailsId, item) {
+      if (!item) return;
+      $(statusId).querySelector('.dot').textContent = item.icon || (item.status === 'ok' ? '🟢' : item.status === 'warning' ? '🟡' : '🔴');
+      $(statusId).querySelector('.val').textContent = item.label || (item.status === 'ok' ? 'Attivo' : 'Errore');
+      $(detailsId).textContent = item.details || item.message || '';
+      $(detailsId).title = item.message || '';
+    }
+
+    $('btnSave').onclick = async () => {
+      const cfg = readForm();
+      await saveCompanyConfig(cfg);
+      toast('Configurazione salvata con successo');
+      checkDiagnostics();
+    };
+
+    $('btnCheckNow').onclick = checkDiagnostics;
+    $('btnDiagRefresh').onclick = checkDiagnostics;
+
+    $('btnReset').onclick = () => {
+      if (confirm('Vuoi ripristinare i valori predefiniti per tutti i fogli?')) {
+        populateForm({
+          company: { sheetName: 'Dati_Azienda_e_Mandanti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'Dati azienda' },
+          agents: { fileName: 'Anagrafica_Agenti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'Agenti' },
+          customers: { fileName: 'clienti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'clienti' },
+          products: { fileName: 'Articoli', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'q_listino_prezzi_catalogo' },
+          repository: { folder: 'Repository', fileName: 'Registro offerte e ordini', spreadsheetId: '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4', tabOffers: 'Offerte', tabOrders: 'Ordini' }
+        });
+        toast('Valori predefiniti ripristinati');
+      }
+    };
+
+    loadCompanyConfig().then(cfg => {
+      populateForm(cfg);
+      checkDiagnostics();
+    });
+  </script>
+</body>
+</html>

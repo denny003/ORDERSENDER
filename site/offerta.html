@@ -23,7 +23,15 @@
   <main class="dense-shell">
     <section class="dense-title">
       <div><span id="documentTitle">OFFERTA CLIENTE</span><h1 id="offerCode">OFF-AG01-0001</h1></div>
-      <div class="heading-actions"><a class="btn secondary" href="/">Pratiche</a><button class="btn secondary admin-only" id="dataBtn">Aggiorna dati</button><button class="btn secondary" id="saveBtn">Salva</button><button class="btn secondary" id="excelBtn">Excel</button><button class="btn secondary" id="printBtn">PDF / Stampa</button><button class="btn primary" id="submitBtn">Invia in azienda</button></div>
+      <div class="heading-actions">
+        <a class="btn secondary" href="/">Pratiche</a>
+        <a class="btn secondary admin-only hidden" href="/configurazione.html" title="Configura Google Drive e Fogli">Configurazione</a>
+        <button class="btn secondary admin-only hidden" id="dataBtn">Aggiorna dati</button>
+        <button class="btn secondary" id="saveBtn">Salva</button>
+        <button class="btn secondary" id="excelBtn">Excel</button>
+        <button class="btn secondary" id="printBtn">PDF / Stampa</button>
+        <button class="btn primary" id="submitBtn">Invia in azienda</button>
+      </div>
     </section>
 
     <section class="party-grid">
@@ -75,6 +83,7 @@
   <dialog id="dataDialog" class="data-dialog"><form method="dialog"><div class="dialog-head"><div><h2>Aggiornamento dati</h2><p>I file vengono elaborati sul dispositivo. Le bozze non vengono cancellate.</p></div><button value="cancel" class="icon-btn" aria-label="Chiudi">×</button></div><div class="data-summary"><div><span>Articoli disponibili</span><strong id="articleDataCount">—</strong></div><div><span>Clienti disponibili</span><strong id="clientDataCount">—</strong></div><div><span>Ultimo aggiornamento</span><strong id="dataUpdatedAt">—</strong></div></div><div class="import-grid"><label class="import-card"><strong>Articoli</strong><span>CSV UTF-8 con le intestazioni del file listino analizzato.</span><input id="articleImport" type="file" accept=".csv,text/csv"></label><label class="import-card"><strong>Clienti</strong><span>CSV UTF-8 con le intestazioni del foglio clienti analizzato.</span><input id="clientImport" type="file" accept=".csv,text/csv"></label></div><div id="importStatus" class="import-status">Seleziona uno o entrambi i file. L’aggiornamento avviene solo su richiesta.</div><details class="mapping-panel"><summary>Gerarchia agenti</summary><p>L’Agente 1 è impostato come capo area e vede i propri clienti più quelli degli agenti assegnati. L’amministrazione vede tutti i clienti, compresi quelli non associati agli 11 agenti operativi.</p><div id="agentMapList" class="agent-map-list"></div></details><div class="dialog-actions"><button value="cancel" class="btn secondary">Chiudi</button><button value="default" class="btn primary" id="applyImport">Applica aggiornamento</button></div></form></dialog>
   <section id="printOffer" class="print-offer" aria-hidden="true"></section>
   <div id="toast" class="toast" role="status"></div>
+  <script src="/config/companyConfig.js"></script>
   <script src="/offer-app.js"></script>
 </body>
 </html>
