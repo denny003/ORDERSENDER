@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b2942">
+  <title>Offerte Agenti — Dashboard</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    :root {
+      --navy: #0b2942;
+      --navy-light: #123b5d;
+      --blue: #2076b5;
+      --ice: #eef5f9;
+      --bg: #f4f7f9;
+      --card-bg: #ffffff;
+      --ink: #0f2434;
+      --muted: #5e7282;
+      --line: #d8e2e8;
+      --green: #16835b;
+      --green-bg: #e6f4ea;
+      --green-text: #137333;
+      --amber-bg: #fef7e0;
+      --amber-text: #b06000;
+      --red-bg: #fce8e6;
+      --red-text: #c5221f;
+      --purple-bg: #f3e8fd;
+      --purple-text: #7627bb;
+      --radius: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Topbar */
+    .topbar-main {
+      background: var(--navy);
+      color: white;
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    }
+    .topbar-content {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-badge {
+      background: #ffffff;
+      color: var(--navy-light);
+      font-weight: 900;
+      font-size: .95rem;
+      border-radius: 10px;
+      padding: 6px 10px;
+      letter-spacing: .05em;
+    }
+    .brand-meta strong {
+      font-size: 1rem;
+      display: block;
+      line-height: 1.2;
+    }
+    .brand-meta small {
+      color: #9cd3fc;
+      font-size: .75rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sync-indicator {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #34d399;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-top {
+      background: rgba(255,255,255,0.12);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s ease;
+    }
+    .btn-top:hover {
+      background: rgba(255,255,255,0.22);
+    }
+
+    /* Main Container */
+    .shell {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    @media (min-width: 600px) {
+      .shell { padding: 24px; }
+    }
+
+    /* Hero & Quick Actions */
+    .hero-card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(11,41,66,0.04);
+    }
+    .hero-welcome {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .hero-welcome h1 {
+      font-size: 1.35rem;
+      margin: 0 0 4px;
+      color: var(--navy);
+    }
+    .user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--ice);
+      color: var(--navy-light);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+
+    /* Mobile CTA Grid */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 480px) {
+      .actions-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .cta-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform .12s ease, box-shadow .12s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-card:active {
+      transform: scale(0.98);
+    }
+    .cta-card.offer {
+      background: linear-gradient(135deg, #1b6ca8 0%, #0f4f80 100%);
+      color: white;
+      box-shadow: 0 6px 18px rgba(27,108,168,0.25);
+    }
+    .cta-card.order {
+      background: linear-gradient(135deg, #16835b 0%, #0e5b3f 100%);
+      color: white;
+      box-shadow: 0 6px 18px rgba(22,131,91,0.25);
+    }
+    .cta-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+    .cta-info strong {
+      display: block;
+      font-size: 1.05rem;
+      line-height: 1.2;
+    }
+    .cta-info small {
+      opacity: 0.85;
+      font-size: .78rem;
+    }
+
+    .sub-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-sub {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      color: var(--navy-light);
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: .84rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-sub:hover {
+      background: var(--ice);
+    }
+
+    /* Practices Section */
+    .practices-card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: 0 4px 16px rgba(11,41,66,0.04);
+    }
+    .practices-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .practices-header h2 {
+      font-size: 1.15rem;
+      margin: 0;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .counter-badge {
+      background: var(--ice);
+      color: var(--navy-light);
+      font-size: .75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
+
+    /* Filter & Search Bar */
+    .filter-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    @media (min-width: 600px) {
+      .filter-bar {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+    .search-box {
+      position: relative;
+      flex: 1;
+    }
+    .search-box input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 14px 10px 36px;
+      border: 1px solid #c9d7df;
+      border-radius: 10px;
+      font-size: .9rem;
+      background: #fafcfe;
+      outline: none;
+    }
+    .search-box input:focus {
+      border-color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(32,118,181,0.12);
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .85rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .search-clear {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      background: none;
+      color: var(--muted);
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .tabs-group {
+      display: inline-flex;
+      background: #eef3f7;
+      padding: 3px;
+      border-radius: 10px;
+      gap: 2px;
+    }
+    .tab-btn {
+      border: 0;
+      background: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .tab-btn.active {
+      background: #ffffff;
+      color: var(--navy);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    /* Practice Item Card */
+    .practices-list {
+      display: grid;
+      gap: 10px;
+    }
+    .practice-item {
+      border: 1px solid #dbe4ea;
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: #ffffff;
+      cursor: pointer;
+      transition: transform .1s ease, border-color .15s ease, box-shadow .15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .practice-item:hover {
+      border-color: #b2c9d8;
+      box-shadow: 0 4px 12px rgba(11,41,66,0.06);
+    }
+    .practice-item:active {
+      transform: scale(0.995);
+    }
+
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .item-doc-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .doc-pill {
+      font-size: .72rem;
+      font-weight: 750;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: .02em;
+    }
+    .doc-pill.offer {
+      background: #e1f0fa;
+      color: #1b6ca8;
+    }
+    .doc-pill.order {
+      background: #e3f7ed;
+      color: #12794e;
+    }
+    .doc-num {
+      font-weight: 750;
+      font-size: .95rem;
+      color: var(--navy);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .status-pill {
+      font-size: .72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .status-green { background: var(--green-bg); color: var(--green-text); }
+    .status-amber { background: var(--amber-bg); color: var(--amber-text); }
+    .status-red { background: var(--red-bg); color: var(--red-text); }
+    .status-purple { background: var(--purple-bg); color: var(--purple-text); }
+
+    .item-customer {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #102a3e;
+      line-height: 1.3;
+      margin: 2px 0;
+    }
+
+    .item-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 8px;
+      border-top: 1px solid #f0f4f7;
+      padding-top: 8px;
+      margin-top: 2px;
+    }
+    .item-meta {
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .item-meta span {
+      display: inline-block;
+    }
+    .item-total-group {
+      text-align: right;
+    }
+    .item-total {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--navy);
+      display: block;
+    }
+    .item-storage-note {
+      font-size: .72rem;
+      color: #16835b;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+    }
+
+    /* Offline Alert Banner */
+    .offline-banner {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      color: #8d6e16;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: .84rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    /* Modal Details Dialog */
+    dialog#detailModal {
+      border: 0;
+      border-radius: 16px;
+      padding: 0;
+      width: min(520px, calc(100vw - 32px));
+      box-shadow: 0 20px 60px rgba(11,41,66,0.28);
+      background: #ffffff;
+    }
+    dialog#detailModal::backdrop {
+      background: rgba(11,41,66,0.6);
+      backdrop-filter: blur(3px);
+    }
+    .modal-head {
+      background: var(--navy);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-head h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+    .modal-close {
+      background: rgba(255,255,255,0.15);
+      border: 0;
+      color: white;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: grid;
+      place-items: center;
+    }
+    .modal-body {
+      padding: 20px;
+      font-size: .9rem;
+      display: grid;
+      gap: 12px;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #f0f4f7;
+      padding-bottom: 8px;
+    }
+    .detail-row span {
+      color: var(--muted);
+      font-size: .82rem;
+    }
+    .detail-row strong {
+      color: var(--navy);
+      text-align: right;
+    }
+    .modal-actions {
+      padding: 16px 20px;
+      background: #f8fafc;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      border-radius: 0 0 16px 16px;
+    }
+
+    /* Login Box */
+    .login-box {
+      max-width: 420px;
+      margin: 60px auto 40px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 12px 36px rgba(11,41,66,0.08);
+    }
+    .login-box h1 {
+      margin: 0 0 6px;
+      font-size: 1.5rem;
+      color: var(--navy);
+    }
+    .login-box p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+    .login-box label {
+      display: block;
+      font-size: .84rem;
+      font-weight: 700;
+      color: #3b4e5c;
+      margin-bottom: 14px;
+    }
+    .login-box input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 6px;
+      padding: 12px;
+      border: 1px solid #cfdbe1;
+      border-radius: 10px;
+      font-size: .95rem;
+    }
+    .login-box input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(32,118,181,0.12);
+      outline: none;
+    }
+    .btn-submit {
+      width: 100%;
+      background: var(--blue);
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      padding: 13px;
+      font-size: 1rem;
+      font-weight: 750;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .error-msg {
+      color: #c5221f;
+      font-size: .85rem;
+      margin-top: 12px;
+      font-weight: 600;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="topbar-main">
+    <div class="topbar-content">
+      <div class="brand-group">
+        <span class="brand-badge">OA</span>
+        <div class="brand-meta">
+          <strong>Offerte Agenti</strong>
+          <small><span class="sync-indicator" id="statusDot"></span> Google Drive & Sheets</small>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a id="adminConfigTop" class="btn-top hidden" href="/configurazione.html">⚙️ Config</a>
+        <button id="logout" class="btn-top hidden">Esci</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <!-- Login Screen -->
+    <section id="login" class="login-box hidden">
+      <h1>Accesso agenti</h1>
+      <p>Inserisci le credenziali fornite dall’amministrazione.</p>
+      <form id="loginForm">
+        <label>Utente
+          <input id="username" autocomplete="username" placeholder="es. agente01" required>
+        </label>
+        <label>Password
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        </label>
+        <button class="btn-submit" type="submit">Accedi al gestionale</button>
+        <p id="loginError" class="error-msg"></p>
+      </form>
+    </section>
+
+    <!-- App Dashboard Screen -->
+    <section id="app" class="hidden">
+      <!-- Welcome & CTA Card -->
+      <div class="hero-card">
+        <div class="hero-welcome">
+          <div>
+            <h1>Offerte e ordini</h1>
+            <span id="welcome" class="user-pill">👤 Accesso in corso…</span>
+          </div>
+          <button class="btn-sub" id="refresh" title="Ricarica dal foglio Google">🔄 Aggiorna registro</button>
+        </div>
+
+        <div class="actions-grid">
+          <a class="cta-card offer" href="/offerta?new=1&type=offer">
+            <span class="cta-icon">🏷️</span>
+            <div class="cta-info">
+              <strong>Nuova offerta</strong>
+              <small>Compila preventivo per il cliente</small>
+            </div>
+          </a>
+          <a class="cta-card order" href="/offerta?new=1&type=order">
+            <span class="cta-icon">📦</span>
+            <div class="cta-info">
+              <strong>Nuovo ordine</strong>
+              <small>Crea ordine diretto di fornitura</small>
+            </div>
+          </a>
+        </div>
+
+        <div class="sub-actions">
+          <a class="btn-sub hidden" id="adminConfigBtn" href="/configurazione.html">⚙️ Configurazione Google Drive</a>
+        </div>
+      </div>
+
+      <!-- Offline alert banner if offline or cached -->
+      <div id="offlineNotice" class="offline-banner hidden">
+        <span>📶</span>
+        <span id="offlineNoticeText">Modalità offline attiva: stai visualizzando le pratiche salvate sul dispositivo.</span>
+      </div>
+
+      <!-- Recent Practices Card -->
+      <div class="practices-card">
+        <div class="practices-header">
+          <h2>
+            <span>📄</span> Registro pratiche
+            <span id="rowsCount" class="counter-badge">0</span>
+          </h2>
+          <div class="tabs-group">
+            <button class="tab-btn active" data-filter="all">Tutte</button>
+            <button class="tab-btn" data-filter="offer">Offerte</button>
+            <button class="tab-btn" data-filter="order">Ordini</button>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="filter-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input id="searchInput" type="search" placeholder="Cerca per cliente, numero documento, agente…" autocomplete="off">
+            <button id="clearSearch" class="search-clear hidden" aria-label="Cancella ricerca">✕</button>
+          </div>
+        </div>
+
+        <!-- Practices List -->
+        <div id="rows" class="practices-list">
+          <div style="text-align:center; padding: 24px; color: var(--muted);">Caricamento pratiche da Google Sheets…</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Detail Modal -->
+  <dialog id="detailModal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Dettaglio pratica</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalContent"></div>
+    <div class="modal-actions" id="modalActions">
+      <button class="btn-sub" id="modalCloseBtn">Chiudi</button>
+      <a class="btn-sub" id="modalNewFromCustomer" href="#">➕ Nuova pratica per cliente</a>
+    </div>
+  </dialog>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    let allPractices = [];
+    let currentFilter = 'all';
+    let currentUser = null;
+
+    async function api(path, opt = {}) {
+      const r = await fetch('/api/' + path, {
+        ...opt,
+        headers: { accept: 'application/json', 'content-type': 'application/json', ...(opt.headers || {}) }
+      });
+      const text = await r.text();
+      let d = {};
+      try { d = text ? JSON.parse(text) : {}; } catch {}
+      if (!r.ok) {
+        const err = new Error(d.error || 'Operazione non riuscita');
+        err.status = r.status;
+        throw err;
+      }
+      return d;
+    }
+
+    function formatDate(val) {
+      if (!val) return '—';
+      try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return String(val).slice(0, 16);
+        return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      } catch {
+        return String(val);
+      }
+    }
+
+    function formatEuro(val) {
+      const n = Number(val) || 0;
+      return n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+    }
+
+    function getStatusClass(st) {
+      const s = String(st || '').toLowerCase();
+      if (s.includes('accett') || s.includes('approv') || s === 'approved') return 'status-green';
+      if (s.includes('resp') || s.includes('reject') || s === 'rejected') return 'status-red';
+      if (s.includes('modific')) return 'status-purple';
+      return 'status-amber';
+    }
+
+    function getStatusLabel(st) {
+      const s = String(st || '').trim();
+      if (!s || s === 'submitted') return 'Da valutare';
+      if (s === 'approved') return 'Accettato';
+      if (s === 'rejected') return 'Respinto';
+      return s;
+    }
+
+    function renderList() {
+      const query = $('searchInput').value.trim().toLowerCase();
+      $('clearSearch').classList.toggle('hidden', !query);
+
+      let filtered = allPractices.filter(item => {
+        if (currentFilter === 'offer' && item.type !== 'Offerta') return false;
+        if (currentFilter === 'order' && item.type !== 'Ordine') return false;
+        if (!query) return true;
+        const searchCorpus = [
+          item.number,
+          item.customer_name,
+          item.customerName,
+          item.customer_id,
+          item.agent_name,
+          item.agent_code,
+          item.status,
+          item.type
+        ].filter(Boolean).join(' ').toLowerCase();
+        return searchCorpus.includes(query);
+      });
+
+      $('rowsCount').textContent = filtered.length;
+
+      if (!filtered.length) {
+        $('rows').innerHTML = `
+          <div style="text-align:center; padding: 36px 16px; color: var(--muted);">
+            <div style="font-size:2rem; margin-bottom:8px;">🔍</div>
+            <strong>Nessuna pratica trovata</strong>
+            <p style="font-size:.85rem; margin:4px 0 0;">${query ? 'Nessun risultato corrisponde alla ricerca inserita' : 'Non ci sono documenti nel registro per questo filtro'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      $('rows').innerHTML = filtered.map((x, idx) => {
+        const isOffer = x.type === 'Offerta';
+        const docNum = x.number || (isOffer ? 'Offerta senza n°' : 'Ordine senza n°');
+        const custName = x.customer_name || x.customerName || 'Cliente non specificato';
+        const agInfo = x.agent_name ? (x.agent_code ? `${x.agent_name} (${x.agent_code})` : x.agent_name) : '';
+        const stLabel = getStatusLabel(x.status);
+        const stClass = getStatusClass(stLabel);
+        const dateStr = formatDate(x.submitted_at || x.updated_at);
+        const totalStr = formatEuro(x.total);
+
+        return `
+          <div class="practice-item" data-index="${idx}">
+            <div class="item-top">
+              <div class="item-doc-info">
+                <span class="doc-pill ${isOffer ? 'offer' : 'order'}">${isOffer ? '🏷️ OFFERTA' : '📦 ORDINE'}</span>
+                <span class="doc-num">${docNum}</span>
+              </div>
+              <span class="status-pill ${stClass}">${stLabel}</span>
+            </div>
+
+            <div class="item-customer">${custName}</div>
+
+            <div class="item-bottom">
+              <div class="item-meta">
+                <div>📅 ${dateStr}</div>
+                ${agInfo ? `<div>👤 ${agInfo}</div>` : ''}
+              </div>
+              <div class="item-total-group">
+                <span class="item-total">${totalStr}</span>
+                <small class="item-storage-note">☁️ Registrato su Sheets</small>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Click event to show modal detail
+      document.querySelectorAll('.practice-item').forEach(el => {
+        el.onclick = () => {
+          const idx = Number(el.dataset.index);
+          const item = filtered[idx];
+          if (item) openDetailModal(item);
+        };
+      });
+    }
+
+    function openDetailModal(item) {
+      const isOffer = item.type === 'Offerta';
+      $('modalTitle').textContent = `${item.type}: ${item.number || ''}`;
+      $('modalContent').innerHTML = `
+        <div class="detail-row">
+          <span>Numero pratica</span>
+          <strong>${item.number || '—'}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Tipo documento</span>
+          <strong>${item.type}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Cliente</span>
+          <strong>${item.customer_name || item.customerName || '—'}</strong>
+        </div>
+        ${item.customer_id ? `
+        <div class="detail-row">
+          <span>Codice cliente</span>
+          <strong>${item.customer_id}</strong>
+        </div>` : ''}
+        <div class="detail-row">
+          <span>Agente incaricato</span>
+          <strong>${item.agent_name || item.agent_code || '—'}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Importo totale</span>
+          <strong style="color:var(--navy); font-size:1.05rem;">${formatEuro(item.total)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Stato / Esito azienda</span>
+          <strong class="status-pill ${getStatusClass(getStatusLabel(item.status))}">${getStatusLabel(item.status)}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Data invio</span>
+          <strong>${formatDate(item.submitted_at)}</strong>
+        </div>
+        ${item.updated_at && item.updated_at !== item.submitted_at ? `
+        <div class="detail-row">
+          <span>Ultimo aggiornamento</span>
+          <strong>${formatDate(item.updated_at)}</strong>
+        </div>` : ''}
+        ${item.notes ? `
+        <div style="margin-top:6px;">
+          <span style="display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px;">Note operative / azienda:</span>
+          <div style="background:#f4f7f9; padding:8px 12px; border-radius:8px; font-size:.85rem; color:#223e54; max-height:100px; overflow-y:auto;">
+            ${item.notes.replace(/^"|"$/g, '')}
+          </div>
+        </div>` : ''}
+      `;
+
+      // Set link for new practice with customer
+      $('modalNewFromCustomer').href = `/offerta?new=1&type=${isOffer ? 'offer' : 'order'}`;
+      $('detailModal').showModal();
+    }
+
+    $('modalClose').onclick = () => $('detailModal').close();
+    $('modalCloseBtn').onclick = () => $('detailModal').close();
+
+    // Tab Filters
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        renderList();
+      };
+    });
+
+    // Search input
+    $('searchInput').oninput = renderList;
+    $('clearSearch').onclick = () => {
+      $('searchInput').value = '';
+      renderList();
+      $('searchInput').focus();
+    };
+
+    async function load() {
+      // 1. Session check
+      try {
+        const me = await api('session');
+        currentUser = me.user;
+        localStorage.setItem('oa_session_user', JSON.stringify(currentUser));
+      } catch (err) {
+        // If unauthorized (401), show login
+        if (err.status === 401) {
+          localStorage.removeItem('oa_session_user');
+          $('login').classList.remove('hidden');
+          $('app').classList.add('hidden');
+          $('logout').classList.add('hidden');
+          return;
+        }
+        // If network error, try offline user cache
+        const cachedUser = localStorage.getItem('oa_session_user');
+        if (cachedUser) {
+          currentUser = JSON.parse(cachedUser);
+        } else {
+          $('login').classList.remove('hidden');
+          $('app').classList.add('hidden');
+          return;
+        }
+      }
+
+      // User logged in: update UI
+      $('login').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      $('logout').classList.remove('hidden');
+
+      const roleBadge = currentUser.role === 'admin' ? 'Amministrazione' : (currentUser.role === 'area_head' ? 'Capo area' : 'Agente');
+      $('welcome').textContent = `👤 ${currentUser.name} (${roleBadge})`;
+
+      if (currentUser.role === 'admin') {
+        $('adminConfigBtn').classList.remove('hidden');
+        $('adminConfigTop').classList.remove('hidden');
+      }
+
+      // 2. Load practices from API or fallback to cached
+      try {
+        $('rows').innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">Sincronizzazione registro Google Sheets…</div>';
+        const [a, b] = await Promise.all([api('offers'), api('orders')]);
+        
+        allPractices = [
+          ...(a.offers || []).map(x => ({ ...x, type: 'Offerta', number: x.offer_number || x.offerNumber || x.number })),
+          ...(b.orders || []).map(x => ({ ...x, type: 'Ordine', number: x.order_number || x.orderNumber || x.number }))
+        ].sort((x, y) => String(y.updated_at || y.submitted_at || '').localeCompare(String(x.updated_at || x.submitted_at || '')));
+
+        localStorage.setItem('oa_cached_practices', JSON.stringify(allPractices));
+        $('statusDot').style.background = '#34d399';
+        $('offlineNotice').classList.add('hidden');
+      } catch (err) {
+        console.warn('Errore lettura Google Sheets, recupero cache locale:', err.message);
+        $('statusDot').style.background = '#fbbf24';
+        const cached = localStorage.getItem('oa_cached_practices');
+        if (cached) {
+          allPractices = JSON.parse(cached);
+          $('offlineNoticeText').textContent = 'Connessione a Google Sheets non disponibile al momento. Visualizzazione dati locali.';
+          $('offlineNotice').classList.remove('hidden');
+        } else {
+          $('rows').innerHTML = `
+            <div style="text-align:center; padding: 24px; color: #c5221f;">
+              Impossibile collegarsi al registro Google Sheets: ${err.message}.
+            </div>
+          `;
+          return;
+        }
+      }
+
+      renderList();
+    }
+
+    $('loginForm').onsubmit = async e => {
+      e.preventDefault();
+      $('loginError').textContent = '';
+      try {
+        await api('login', {
+          method: 'POST',
+          body: JSON.stringify({ username: $('username').value, password: $('password').value })
+        });
+        location.reload();
+      } catch (err) {
+        $('loginError').textContent = err.message;
+      }
+    };
+
+    $('logout').onclick = async () => {
+      try {
+        await api('logout', { method: 'POST', body: '{}' });
+      } catch {}
+      localStorage.removeItem('oa_session_user');
+      location.reload();
+    };
+
+    $('refresh').onclick = load;
+    load();
+  </script>
+</body>
+</html>

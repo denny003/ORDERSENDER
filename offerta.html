@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123b5d">
+  <meta name="description" content="Creazione offerte commerciali compatte, anche offline.">
+  <title>Offerte Agenti</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/dense.css">
+  <link rel="stylesheet" href="/roles.css">
+  <link rel="stylesheet" href="/data.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">OA</span><div><strong>Offerte Agenti</strong><small>Preventivi e catalogo offline</small></div></div>
+    <div class="user-switch"><label for="roleSelect">Vista operativa</label><select id="roleSelect"></select></div>
+    <div class="sync"><span class="sync-dot"></span><span id="syncLabel">Salvato sul dispositivo</span></div>
+  </header>
+
+  <main class="dense-shell">
+    <section class="dense-title">
+      <div><span id="documentTitle">OFFERTA CLIENTE</span><h1 id="offerCode">OFF-AG01-0001</h1></div>
+      <div class="heading-actions">
+        <a class="btn secondary" href="/">Pratiche</a>
+        <a class="btn secondary admin-only hidden" href="/configurazione.html" title="Configura Google Drive e Fogli">Configurazione</a>
+        <button class="btn secondary admin-only hidden" id="dataBtn">Aggiorna dati</button>
+        <button class="btn secondary" id="saveBtn">Salva</button>
+        <button class="btn secondary" id="excelBtn">Excel</button>
+        <button class="btn secondary" id="printBtn">PDF / Stampa</button>
+        <button class="btn primary" id="submitBtn">Invia in azienda</button>
+      </div>
+    </section>
+
+    <section class="party-grid">
+      <div class="party-box agent-box">
+        <small>AGENTE / AZIENDA</small>
+        <strong id="companyName">Caricamento dati aziendali…</strong>
+        <span id="companyAddress"></span>
+        <span id="companyContacts"></span>
+        <span id="agentIdentity">Agente</span>
+      </div>
+      <div class="party-box customer-box">
+        <div class="party-label"><small>CLIENTE</small><button class="text-btn" id="newCustomerBtn">+ Nuovo</button></div>
+        <select id="customerSelect"><option value="">Seleziona un cliente…</option></select>
+        <div id="customerDetails" class="customer-details compact hidden"></div>
+      </div>
+    </section>
+
+    <section class="commercial-table">
+      <label><span>Data</span><input id="documentDate" readonly></label>
+      <label><span>Pagamento</span><select id="payment"><option>Bonifico bancario anticipato</option><option selected>Ri.Ba. 60 gg. f.m.</option><option>Ri.Ba. 90 gg. f.m.</option><option>Da concordare</option></select></label>
+      <label><span>Spedizione</span><select id="shipping"><option selected>Franco destino</option><option>Franco partenza</option><option>Ritiro presso magazzino</option></select></label>
+      <label><span>Validità</span><select id="validity"><option>15 giorni</option><option selected>30 giorni</option><option>60 giorni</option><option>90 giorni</option></select></label>
+    </section>
+
+    <section class="article-panel">
+      <div class="article-tools">
+        <div class="product-picker"><input id="productSearch" type="search" placeholder="Cerca per codice, descrizione, marca o famiglia…" autocomplete="off"><div id="productResults" class="product-results hidden"></div></div>
+        <button class="btn secondary compact-btn" id="catalogBtn">Catalogo fotografico</button>
+        <span class="count-pill" id="itemCount">0 articoli</span>
+      </div>
+      <div id="catalogPanel" class="catalog-panel hidden"><div class="catalog-head"><strong>Catalogo articoli</strong><div class="catalog-filters"><select id="sectorFilter"><option value="">Tutti i settori</option></select><select id="macroFilter"><option value="">Tutte le macrofamiglie</option></select><select id="familyFilter"><option value="">Tutte le famiglie</option></select><select id="brandFilter"><option value="">Tutte le marche</option></select><button class="icon-btn" id="closeCatalog" aria-label="Chiudi catalogo">×</button></div></div><div id="catalogGrid" class="catalog-grid"></div><button class="btn secondary load-more hidden" id="loadMoreCatalog">Mostra altri articoli</button></div>
+      <div class="table-scroll">
+        <table class="edit-table">
+          <thead><tr><th>Codice / descrizione</th><th>Q.tà</th><th>Listino</th><th>Sc. 1</th><th>Sc. 2</th><th>Sc. 3</th><th>Sc. 4</th><th>Ric.</th><th>Netto</th><th></th></tr></thead>
+          <tbody id="itemsList"></tbody>
+        </table>
+        <div id="emptyState" class="dense-empty">Nessun articolo inserito. Usa la ricerca qui sopra.</div>
+      </div>
+    </section>
+
+    <section class="dense-footer">
+      <label class="notes-box"><span>NOTE E CONDIZIONI</span><textarea id="notes" rows="3" placeholder="Tempi di consegna, esclusioni, condizioni particolari…"></textarea></label>
+      <aside class="totals-table"><div><span>Listino</span><strong id="listTotal">€ 0,00</strong></div><div><span>Sconti / ricarichi</span><strong id="discountTotal">€ 0,00</strong></div><div><span>Imponibile</span><strong id="netTotal">€ 0,00</strong></div><div><span>IVA</span><strong id="vatTotal">€ 0,00</strong></div><div class="grand"><span id="grandLabel">TOTALE OFFERTA</span><strong id="grandTotal">€ 0,00</strong></div><p id="validationStatus" class="validation neutral">Inserisci almeno un articolo</p></aside>
+    </section>
+  </main>
+
+  <dialog id="customerDialog"><form method="dialog" id="customerForm"><div class="dialog-head"><div><h2>Nuovo cliente</h2><p>Ogni cliente viene assegnato a un solo agente.</p></div><button value="cancel" class="icon-btn" aria-label="Chiudi">×</button></div><label class="field full"><span>Ragione sociale o nome</span><input id="newCustomerName" required></label><div class="two-cols"><label class="field"><span>Città</span><input id="newCustomerCity" required></label><label class="field"><span>P. IVA / Codice fiscale</span><input id="newCustomerTax"></label></div><label class="field full address-field"><span>Indirizzo</span><input id="newCustomerAddress"></label><label class="field full address-field"><span>Agente assegnato</span><select id="assignedAgent"></select></label><div class="dialog-actions"><button value="cancel" class="btn secondary">Annulla</button><button value="default" class="btn primary" id="confirmCustomer">Salva cliente</button></div></form></dialog>
+
+  <dialog id="dataDialog" class="data-dialog"><form method="dialog"><div class="dialog-head"><div><h2>Aggiornamento dati</h2><p>I file vengono elaborati sul dispositivo. Le bozze non vengono cancellate.</p></div><button value="cancel" class="icon-btn" aria-label="Chiudi">×</button></div><div class="data-summary"><div><span>Articoli disponibili</span><strong id="articleDataCount">—</strong></div><div><span>Clienti disponibili</span><strong id="clientDataCount">—</strong></div><div><span>Ultimo aggiornamento</span><strong id="dataUpdatedAt">—</strong></div></div><div class="import-grid"><label class="import-card"><strong>Articoli</strong><span>CSV UTF-8 con le intestazioni del file listino analizzato.</span><input id="articleImport" type="file" accept=".csv,text/csv"></label><label class="import-card"><strong>Clienti</strong><span>CSV UTF-8 con le intestazioni del foglio clienti analizzato.</span><input id="clientImport" type="file" accept=".csv,text/csv"></label></div><div id="importStatus" class="import-status">Seleziona uno o entrambi i file. L’aggiornamento avviene solo su richiesta.</div><details class="mapping-panel"><summary>Gerarchia agenti</summary><p>L’Agente 1 è impostato come capo area e vede i propri clienti più quelli degli agenti assegnati. L’amministrazione vede tutti i clienti, compresi quelli non associati agli 11 agenti operativi.</p><div id="agentMapList" class="agent-map-list"></div></details><div class="dialog-actions"><button value="cancel" class="btn secondary">Chiudi</button><button value="default" class="btn primary" id="applyImport">Applica aggiornamento</button></div></form></dialog>
+  <section id="printOffer" class="print-offer" aria-hidden="true"></section>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/config/companyConfig.js"></script>
+  <script src="/offer-app.js"></script>
+</body>
+</html>
