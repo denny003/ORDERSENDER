@@ -165,6 +165,15 @@
       </div>
     </div>
 
+    <!-- AVVISO CONDIVISIONE CENTRALE -->
+    <div style="background: #eef6fc; border: 1px solid #bce1fb; border-left: 4px solid #0284c7; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; display: flex; align-items: center; gap: 14px;">
+      <div style="font-size: 1.6rem;">🌐</div>
+      <div style="font-size: .88rem; color: #0c4a6e; line-height: 1.45;">
+        <strong style="display:block; font-size: .95rem; margin-bottom: 2px;">Configurazione Centrale Condivisa Cloud</strong>
+        Tutti i parametri e gli ID dei fogli salvati in questa pagina vengono memorizzati direttamente sul foglio Google Drive e <strong>condivisi istantaneamente con tutti gli Agenti e dispositivi</strong>. Gli agenti possono usare l'app da smartphone senza dover inserire o toccare alcun parametro.
+      </div>
+    </div>
+
     <!-- SEZIONE AZIENDA -->
     <section class="section-card">
       <h3>🏢 Azienda</h3>
@@ -176,7 +185,7 @@
         </div>
         <div class="field" style="grid-column: span 2;">
           <label for="companySpreadsheetId">Spreadsheet ID</label>
-          <input id="companySpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+          <input id="companySpreadsheetId" placeholder="1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M">
         </div>
         <div class="field">
           <label for="companyTab">Nome tab</label>
@@ -196,7 +205,7 @@
         </div>
         <div class="field" style="grid-column: span 2;">
           <label for="agentsSpreadsheetId">Spreadsheet ID</label>
-          <input id="agentsSpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+          <input id="agentsSpreadsheetId" placeholder="13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU">
         </div>
         <div class="field">
           <label for="agentsTab">Tab</label>
@@ -216,7 +225,7 @@
         </div>
         <div class="field" style="grid-column: span 2;">
           <label for="customersSpreadsheetId">Spreadsheet ID</label>
-          <input id="customersSpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+          <input id="customersSpreadsheetId" placeholder="1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8">
         </div>
         <div class="field">
           <label for="customersTab">Tab</label>
@@ -236,7 +245,7 @@
         </div>
         <div class="field" style="grid-column: span 2;">
           <label for="productsSpreadsheetId">Spreadsheet ID</label>
-          <input id="productsSpreadsheetId" placeholder="1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0">
+          <input id="productsSpreadsheetId" placeholder="17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE">
         </div>
         <div class="field">
           <label for="productsTab">Tab</label>
@@ -260,7 +269,7 @@
         </div>
         <div class="field" style="grid-column: span 2;">
           <label for="registerSpreadsheetId">Spreadsheet ID "Registro offerte e ordini"</label>
-          <input id="registerSpreadsheetId" placeholder="1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4">
+          <input id="registerSpreadsheetId" placeholder="1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc">
         </div>
         <div class="field">
           <label for="registerTabOffers">Tab Offerte</label>
@@ -446,10 +455,20 @@
 
     // Save button
     $('btnSave').onclick = async () => {
-      const cfg = readForm();
-      await saveCompanyConfig(cfg);
-      toast('Configurazione salvata con successo');
-      await checkDiagnostics();
+      const btn = $('btnSave');
+      btn.disabled = true;
+      btn.textContent = 'Salvataggio cloud…';
+      try {
+        const cfg = readForm();
+        await saveCompanyConfig(cfg);
+        toast('Configurazione centrale salvata e condivisa con tutti i dispositivi!');
+        await checkDiagnostics();
+      } catch (err) {
+        toast('Errore salvataggio: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Salva configurazione';
+      }
     };
 
     // "Verifica connessioni" button: Auto-saves whatever is in the form first, then checks
@@ -469,11 +488,11 @@
     $('btnReset').onclick = () => {
       if (confirm('Vuoi ripristinare i valori predefiniti per tutti i fogli?')) {
         const defaults = {
-          company: { sheetName: 'Dati_Azienda_e_Mandanti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'Dati azienda' },
-          agents: { fileName: 'Anagrafica_Agenti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'Agenti' },
-          customers: { fileName: 'clienti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'clienti' },
-          products: { fileName: 'Articoli', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'q_listino_prezzi_catalogo' },
-          repository: { folder: 'Repository', fileName: 'Registro offerte e ordini', spreadsheetId: '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4', tabOffers: 'Offerte', tabOrders: 'Ordini' }
+          company: { sheetName: 'Dati_Azienda_e_Mandanti', spreadsheetId: '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M', tab: 'Dati azienda' },
+          agents: { fileName: 'Anagrafica_Agenti', spreadsheetId: '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU', tab: 'Agenti' },
+          customers: { fileName: 'clienti', spreadsheetId: '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8', tab: 'clienti' },
+          products: { fileName: 'Articoli', spreadsheetId: '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE', tab: 'q_listino_prezzi_catalogo' },
+          repository: { folder: 'Repository', fileName: 'Registro offerte e ordini', spreadsheetId: '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc', tabOffers: 'Offerte', tabOrders: 'Ordini' }
         };
         populateForm(defaults);
         saveCompanyConfig(defaults);
@@ -482,26 +501,19 @@
       }
     };
 
-    // Single authoritative population on page load — never double-write.
-    // If localStorage already has admin-saved config, use it directly
-    // and skip the server fetch to avoid cold-start defaults overwriting.
+    // Page initialization:
+    // 1. Immediately populate from local cache/defaults so UI is never blank
+    // 2. Asynchronously fetch the authoritative central cloud config from server
     (async () => {
-      const stored = getStoredConfig();
-      let cfg;
-      if (stored && (stored.source === 'Configurazione amministratore' || stored.lastUpdate)) {
-        // localStorage is authoritative — use it, sync to server silently
-        cfg = window.companyConfig || deepMergeConfig(defaultConfig, stored);
-        window.companyConfig = cfg;
-        fetch('/api/config', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(cfg)
-        }).catch(() => {});
-      } else {
-        // No admin-saved config yet — load from server or defaults
-        cfg = await loadCompanyConfig();
+      const initial = window.companyConfig || getStoredConfig() || defaultConfig;
+      populateForm(initial);
+
+      try {
+        const freshCfg = await loadCompanyConfig(true);
+        populateForm(freshCfg);
+      } catch (e) {
+        console.warn('Errore sync configurazione centrale:', e);
       }
-      populateForm(cfg);
       checkDiagnostics();
     })();
   </script>

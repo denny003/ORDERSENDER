@@ -99,25 +99,44 @@ async function loadData() {
   ]);
 
   if (cachedData) {
-    products = cachedData.articles || [];
-    clients = cachedData.clients || [];
-    dataMeta = cachedData.meta || {};
+    const isOldTestArticles = (cachedData.articles || []).length < 50;
+    if (!isOldTestArticles) {
+      products = cachedData.articles || [];
+      clients = cachedData.clients || [];
+      dataMeta = cachedData.meta || {};
+    }
   }
   if (cachedComp) companyProfile = { ...companyProfile, ...cachedComp };
   if (cachedAg) {
-    AGENTS = cachedAg.agents || [];
-    agentById = Object.fromEntries(AGENTS.map(a => [a.id, a]));
-    hierarchy = cachedAg.hierarchy || hierarchy;
+    const hasOldTestAgent = (cachedAg.agents || []).some(a => a.name && (a.name.includes('Micozzi') || a.name.includes('Pontrelli')));
+    if (!hasOldTestAgent) {
+      AGENTS = cachedAg.agents || [];
+      agentById = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+      hierarchy = cachedAg.hierarchy || hierarchy;
+    }
   }
 
   // Step 2: If online, fetch live data from server endpoints
+  // Pass spreadsheet IDs directly as query params (Netlify Functions are stateless!)
   if (navigator.onLine) {
     try {
+      if (window.companyConfigPromise) {
+        try { await window.companyConfigPromise; } catch {}
+      }
+      const cfg = window.companyConfig || {};
+      const qs = (id, tab) => {
+        const params = new URLSearchParams();
+        if (id) params.set('id', id);
+        if (tab) params.set('tab', tab);
+        const str = params.toString();
+        return str ? '?' + str : '';
+      };
+
       const [compRes, agRes, custRes, prodRes] = await Promise.all([
-        fetch('/api/company', { headers: { accept: 'application/json' }, cache: 'no-store' }),
-        fetch('/api/agents', { headers: { accept: 'application/json' }, cache: 'no-store' }),
-        fetch('/api/customers', { headers: { accept: 'application/json' }, cache: 'no-store' }),
-        fetch('/api/products', { headers: { accept: 'application/json' }, cache: 'no-store' })
+        fetch(`/api/company${qs(cfg.company?.spreadsheetId, cfg.company?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`/api/agents${qs(cfg.agents?.spreadsheetId, cfg.agents?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`/api/customers${qs(cfg.customers?.spreadsheetId, cfg.customers?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`/api/products${qs(cfg.products?.spreadsheetId, cfg.products?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' })
       ]);
 
       if (compRes.ok) {
@@ -130,7 +149,7 @@ async function loadData() {
 
       if (agRes.ok) {
         const d = await agRes.json();
-        if (d.agents && d.agents.length > 0) {
+        if (d.ok !== false && d.agents && d.agents.length > 0) {
           AGENTS = d.agents;
           agentById = Object.fromEntries(AGENTS.map(a => [a.id, a]));
           hierarchy = d.hierarchy || hierarchy;
@@ -140,14 +159,14 @@ async function loadData() {
 
       if (custRes.ok) {
         const d = await custRes.json();
-        if (d.customers && d.customers.length > 0) {
+        if (d.ok !== false && d.customers && d.customers.length > 0) {
           clients = d.customers;
         }
       }
 
       if (prodRes.ok) {
         const d = await prodRes.json();
-        if (d.products && d.products.length > 0) {
+        if (d.ok !== false && d.products && d.products.length > 0) {
           products = d.products;
         }
       }
@@ -305,7 +324,17 @@ function catalogMatches() {
 
 function renderCatalog() {
   const matches = catalogMatches(), shown = matches.slice(0, catalogLimit);
-  $('catalogGrid').innerHTML = shown.map(p => `<button class="catalog-card" data-catalog-code="${esc(p.code)}"><div class="product-photo">${p.imageRef ? `<small>${esc(p.imageRef.split('\\').pop())}</small>` : 'FOTO NON DISPONIBILE'}</div><div class="catalog-info"><strong>${esc(p.code)}</strong><span>${esc(p.description)}</span><small>${esc([p.brand, p.macroFamily, p.family].filter(Boolean).join(' · '))}</small><b>${euro.format(p.price)}</b></div></button>`).join('') || '<div class="empty-state">Nessun articolo con questi filtri</div>';
+  $('catalogGrid').innerHTML = shown.map(p => {
+    let photoHtml;
+    if (p.imageUrl && (p.imageUrl.startsWith('http://') || p.imageUrl.startsWith('https://'))) {
+      photoHtml = `<img src="${esc(p.imageUrl)}" alt="${esc(p.description)}" loading="lazy" onerror="this.parentElement.innerHTML='<small>FOTO NON DISPONIBILE</small>'">`;
+    } else if (p.imageRef) {
+      photoHtml = `<small>${esc(p.imageRef.split('\\').pop())}</small>`;
+    } else {
+      photoHtml = '<small>FOTO NON DISPONIBILE</small>';
+    }
+    return `<button type="button" class="catalog-card" data-catalog-code="${esc(p.code)}"><div class="product-photo">${photoHtml}</div><div class="catalog-info"><strong>${esc(p.code)}</strong><span>${esc(p.description)}</span><small>${esc([p.brand, p.macroFamily, p.family].filter(Boolean).join(' · '))}</small><b>${euro.format(p.price)}</b></div></button>`;
+  }).join('') || '<div class="empty-state">Nessun articolo con questi filtri</div>';
   $('loadMoreCatalog').classList.toggle('hidden', shown.length >= matches.length);
   $('loadMoreCatalog').textContent = `Mostra altri (${matches.length - shown.length})`;
   document.querySelectorAll('[data-catalog-code]').forEach(b => b.onclick = () => {
@@ -471,8 +500,11 @@ function exportExcel() {
 
 function submissionPayload() {
   const c = customerData(), t = totals(), agent = currentAgent(), number = offerNumber();
+  const repoId = window.companyConfig?.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
   const base = {
     id: localStorage.getItem(`submission-${number}`) || crypto.randomUUID(),
+    spreadsheetId: repoId,
+    repositorySpreadsheetId: repoId,
     agentCode: agent.id,
     agentName: agent.name,
     customerId: c.id,

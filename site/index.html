@@ -980,6 +980,9 @@
       // 2. Load practices from API or fallback to cached
       try {
         $('rows').innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">Sincronizzazione registro Google Sheets…</div>';
+        if (window.companyConfigPromise) {
+          try { await window.companyConfigPromise; } catch {}
+        }
         const cfg = window.companyConfig || {};
         const regParam = cfg.repository?.spreadsheetId ? `?id=${encodeURIComponent(cfg.repository.spreadsheetId)}` : '';
         const [a, b] = await Promise.all([api(`offers${regParam}`), api(`orders${regParam}`)]);

@@ -187,6 +187,157 @@ async function updateRow(id, range, values) {
   });
 }
 
+// -------------------------------------------------------------
+// CENTRAL CLOUD CONFIGURATION (GOOGLE SHEETS BACKED)
+// -------------------------------------------------------------
+let centralConfigLoaded = false;
+let lastCentralConfigFetch = 0;
+
+function mergeRuntimeConfig(custom) {
+  if (!custom || typeof custom !== 'object') return;
+  if (custom.company) runtimeConfig.company = { ...runtimeConfig.company, ...custom.company };
+  if (custom.agents) runtimeConfig.agents = { ...runtimeConfig.agents, ...custom.agents };
+  if (custom.customers) runtimeConfig.customers = { ...runtimeConfig.customers, ...custom.customers };
+  if (custom.products) runtimeConfig.products = { ...runtimeConfig.products, ...custom.products };
+  if (custom.repository) runtimeConfig.repository = { ...runtimeConfig.repository, ...custom.repository };
+  if (custom.googleDrive) runtimeConfig.googleDrive = { ...runtimeConfig.googleDrive, ...custom.googleDrive };
+  if (custom.lastUpdate) runtimeConfig.lastUpdate = custom.lastUpdate;
+  if (custom.updatedBy) runtimeConfig.updatedBy = custom.updatedBy;
+}
+
+async function ensureSheetTab(id, tabName) {
+  try {
+    const meta = await sheets(`${id}?fields=sheets.properties.title`);
+    const titles = (meta?.sheets || []).map(s => s.properties?.title);
+    if (!titles.includes(tabName)) {
+      await sheets(`${id}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: tabName,
+                  gridProperties: { rowCount: 60, columnCount: 8 }
+                }
+              }
+            }
+          ]
+        })
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn(`ensureSheetTab '${tabName}' warning:`, err.message);
+    return false;
+  }
+}
+
+async function loadCentralConfig(force = false) {
+  if (centralConfigLoaded && !force && (Date.now() - lastCentralConfigFetch < 30000)) {
+    return runtimeConfig;
+  }
+  const regId = runtimeConfig.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+  try {
+    const rows = await readRange(regId, "'_Configurazione'!A1:E30");
+    if (rows && rows.length > 0) {
+      let parsedFromJson = false;
+      for (const r of rows) {
+        if (String(r[0] || '').trim() === 'CONFIG_JSON' && r[1]) {
+          try {
+            const parsed = JSON.parse(r[1]);
+            if (parsed && typeof parsed === 'object') {
+              mergeRuntimeConfig(parsed);
+              parsedFromJson = true;
+              break;
+            }
+          } catch {}
+        }
+      }
+      if (!parsedFromJson) {
+        for (const r of rows) {
+          const k = String(r[0] || '').trim();
+          const v = String(r[1] || '').trim();
+          if (!k || !v) continue;
+          if (k === 'company_spreadsheetId') runtimeConfig.company.spreadsheetId = v;
+          if (k === 'company_tab') runtimeConfig.company.tab = v;
+          if (k === 'company_sheetName') runtimeConfig.company.sheetName = v;
+          if (k === 'agents_spreadsheetId') runtimeConfig.agents.spreadsheetId = v;
+          if (k === 'agents_tab') runtimeConfig.agents.tab = v;
+          if (k === 'agents_fileName') runtimeConfig.agents.fileName = v;
+          if (k === 'customers_spreadsheetId') runtimeConfig.customers.spreadsheetId = v;
+          if (k === 'customers_tab') runtimeConfig.customers.tab = v;
+          if (k === 'customers_fileName') runtimeConfig.customers.fileName = v;
+          if (k === 'products_spreadsheetId') runtimeConfig.products.spreadsheetId = v;
+          if (k === 'products_tab') runtimeConfig.products.tab = v;
+          if (k === 'products_fileName') runtimeConfig.products.fileName = v;
+          if (k === 'repository_spreadsheetId') runtimeConfig.repository.spreadsheetId = v;
+          if (k === 'repository_tabOffers') runtimeConfig.repository.tabOffers = v;
+          if (k === 'repository_tabOrders') runtimeConfig.repository.tabOrders = v;
+          if (k === 'repository_folder') runtimeConfig.repository.folder = v;
+          if (k === 'drive_sourceFolderUrl') runtimeConfig.googleDrive.sourceFolderUrl = v;
+          if (k === 'drive_folderId') runtimeConfig.googleDrive.folderId = v;
+        }
+      }
+      centralConfigLoaded = true;
+      lastCentralConfigFetch = Date.now();
+    }
+  } catch (err) {
+    // Keep runtimeConfig defaults silently
+  }
+  return runtimeConfig;
+}
+
+async function saveCentralConfig(cfg, user) {
+  mergeRuntimeConfig(cfg);
+  centralConfigLoaded = true;
+  lastCentralConfigFetch = Date.now();
+  const now = new Date().toISOString();
+  const userName = user?.name || user?.username || 'Amministrazione';
+  runtimeConfig.lastUpdate = now;
+  runtimeConfig.updatedBy = userName;
+  runtimeConfig.source = 'Configurazione centrale Google Drive';
+
+  const regId = runtimeConfig.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+
+  const rows = [
+    ['CHIAVE_CONFIGURAZIONE', 'VALORE', 'DESCRIZIONE', 'ULTIMO_AGGIORNAMENTO', 'UTENTE'],
+    ['CONFIG_JSON', JSON.stringify(runtimeConfig), 'Payload JSON unificato di configurazione', now, userName],
+    ['company_spreadsheetId', runtimeConfig.company.spreadsheetId || '', 'Spreadsheet ID Dati Azienda', now, userName],
+    ['company_tab', runtimeConfig.company.tab || '', 'Nome Tab Dati Azienda', now, userName],
+    ['company_sheetName', runtimeConfig.company.sheetName || '', 'Nome File Azienda', now, userName],
+    ['agents_spreadsheetId', runtimeConfig.agents.spreadsheetId || '', 'Spreadsheet ID Anagrafica Agenti', now, userName],
+    ['agents_tab', runtimeConfig.agents.tab || '', 'Nome Tab Agenti', now, userName],
+    ['agents_fileName', runtimeConfig.agents.fileName || '', 'Nome File Agenti', now, userName],
+    ['customers_spreadsheetId', runtimeConfig.customers.spreadsheetId || '', 'Spreadsheet ID Clienti', now, userName],
+    ['customers_tab', runtimeConfig.customers.tab || '', 'Nome Tab Clienti', now, userName],
+    ['customers_fileName', runtimeConfig.customers.fileName || '', 'Nome File Clienti', now, userName],
+    ['products_spreadsheetId', runtimeConfig.products.spreadsheetId || '', 'Spreadsheet ID Articoli / Listino', now, userName],
+    ['products_tab', runtimeConfig.products.tab || '', 'Nome Tab Listino', now, userName],
+    ['products_fileName', runtimeConfig.products.fileName || '', 'Nome File Articoli', now, userName],
+    ['repository_spreadsheetId', runtimeConfig.repository.spreadsheetId || '', 'Spreadsheet ID Registro Offerte e Ordini', now, userName],
+    ['repository_tabOffers', runtimeConfig.repository.tabOffers || '', 'Tab Offerte nel Registro', now, userName],
+    ['repository_tabOrders', runtimeConfig.repository.tabOrders || '', 'Tab Ordini nel Registro', now, userName],
+    ['repository_folder', runtimeConfig.repository.folder || '', 'Nome Cartella Repository', now, userName],
+    ['drive_sourceFolderUrl', runtimeConfig.googleDrive.sourceFolderUrl || '', 'URL Cartella Google Drive Condivisa', now, userName],
+    ['drive_folderId', runtimeConfig.googleDrive.folderId || '', 'ID Cartella Google Drive Condivisa', now, userName]
+  ];
+
+  let savedToSheet = false;
+  let sheetError = null;
+  try {
+    await ensureSheetTab(regId, '_Configurazione');
+    await updateRow(regId, "'_Configurazione'!A1:E20", rows);
+    savedToSheet = true;
+  } catch (err) {
+    sheetError = err.message;
+    console.error('Impossibile salvare su Google Sheets _Configurazione:', err.message);
+  }
+
+  return { ok: true, savedToSheet, sheetError, config: runtimeConfig };
+}
+
+
 const companyKeys = {
   AZ001: 'companyName',
   AZ002: 'displayName',
@@ -1042,15 +1193,20 @@ async function createDoc(tab, body, user, customId) {
       ];
     }
 
-    // Find exact next empty row directly under header
+    // Find the FIRST empty row directly under the header (e.g. Row 5)
     const searchRows = await readRange(regId, `'${tab}'!A1:B1000`).catch(() => []);
-    let nextRow = (headerIdx >= 0 ? headerIdx + 1 : 1) + 1; // e.g. 5 if header is row 4
-    for (let i = (headerIdx >= 0 ? headerIdx + 1 : 1); i < searchRows.length; i++) {
+    let nextRow = -1;
+    const startIdx = headerIdx >= 0 ? headerIdx + 1 : 1;
+    for (let i = startIdx; i < Math.max(searchRows.length, startIdx + 1); i++) {
       const colA = String(searchRows[i]?.[0] || '').trim();
       const colB = String(searchRows[i]?.[1] || '').trim();
-      if (colA || colB) {
-        nextRow = i + 2;
+      if (!colA && !colB) {
+        nextRow = i + 1; // 1-indexed row number in Google Sheets
+        break;
       }
+    }
+    if (nextRow < 0) {
+      nextRow = searchRows.length ? searchRows.length + 1 : 5;
     }
 
     try {
@@ -1071,6 +1227,9 @@ export default async (request, context) => {
   try {
     const url = new URL(request.url);
     const path = (context.params?.splat || url.pathname.split('/api/')[1] || '').replace(/^\/+|\/+$/g, '');
+
+    // Ensure central cloud config is active
+    await loadCentralConfig();
 
     // Auth endpoints
     if (path === 'login' && request.method === 'POST') {
@@ -1099,16 +1258,21 @@ export default async (request, context) => {
     // Config endpoints
     if (path === 'config') {
       if (request.method === 'POST') {
+        const user = session(request);
         const body = await request.json().catch(() => ({}));
-        if (body && typeof body === 'object') {
-          if (body.company) runtimeConfig.company = { ...runtimeConfig.company, ...body.company };
-          if (body.agents) runtimeConfig.agents = { ...runtimeConfig.agents, ...body.agents };
-          if (body.customers) runtimeConfig.customers = { ...runtimeConfig.customers, ...body.customers };
-          if (body.products) runtimeConfig.products = { ...runtimeConfig.products, ...body.products };
-          if (body.repository) runtimeConfig.repository = { ...runtimeConfig.repository, ...body.repository };
-          if (body.googleDrive) runtimeConfig.googleDrive = { ...runtimeConfig.googleDrive, ...body.googleDrive };
-        }
-        return json(200, { ok: true, config: runtimeConfig, message: 'Configurazione aggiornata con successo' });
+        const saveRes = await saveCentralConfig(body, user);
+        return json(200, {
+          ok: true,
+          config: runtimeConfig,
+          savedToSheet: saveRes.savedToSheet,
+          sheetError: saveRes.sheetError,
+          message: saveRes.savedToSheet
+            ? 'Configurazione centrale salvata su Google Drive e condivisa con tutti i dispositivi'
+            : 'Configurazione aggiornata in memoria'
+        });
+      }
+      if (url.searchParams.get('fresh') === '1') {
+        await loadCentralConfig(true);
       }
       return json(200, { ok: true, config: runtimeConfig });
     }

@@ -21,7 +21,7 @@ function users() {
     if (list.length) return list;
   } catch {}
   return [
-    { username: 'agente01', password: 'cambiare-password', name: 'Federico Micozzi', role: 'agent', agentCode: 'AG01' },
+    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' },
     { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' }
   ];
 }
@@ -72,32 +72,40 @@ function normalizeAgentId(code) {
   return str;
 }
 
+const cleanEnvId = (val, oldPatterns = ['1mnW', '1N6ZcGa']) => {
+  if (!val) return '';
+  for (const p of oldPatterns) {
+    if (val.includes(p)) return '';
+  }
+  return val;
+};
+
 // In-memory runtime configuration with sensible defaults
 let runtimeConfig = {
   company: {
     sheetName: 'Dati_Azienda_e_Mandanti',
-    spreadsheetId: process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: cleanEnvId(process.env.COMPANY_SPREADSHEET_ID) || '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M',
     tab: 'Dati azienda'
   },
   agents: {
     fileName: 'Anagrafica_Agenti',
-    spreadsheetId: process.env.AGENTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: cleanEnvId(process.env.AGENTS_SPREADSHEET_ID) || '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU',
     tab: 'Agenti'
   },
   customers: {
     fileName: 'clienti',
-    spreadsheetId: process.env.CUSTOMERS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: cleanEnvId(process.env.CUSTOMERS_SPREADSHEET_ID) || '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8',
     tab: 'clienti'
   },
   products: {
     fileName: 'Articoli',
-    spreadsheetId: process.env.PRODUCTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: cleanEnvId(process.env.PRODUCTS_SPREADSHEET_ID) || '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE',
     tab: 'q_listino_prezzi_catalogo'
   },
   repository: {
     folder: 'Repository',
     fileName: 'Registro offerte e ordini',
-    spreadsheetId: process.env.REGISTER_SPREADSHEET_ID || '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4',
+    spreadsheetId: cleanEnvId(process.env.REGISTER_SPREADSHEET_ID) || cleanEnvId(process.env.REPOSITORY_SPREADSHEET_ID) || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc',
     tabOffers: 'Offerte',
     tabOrders: 'Ordini'
   },
@@ -166,11 +174,169 @@ async function readRange(id, range) {
 }
 
 async function append(id, range, values) {
-  return sheets(`${id}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  return sheets(`${id}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
     method: 'POST',
     body: JSON.stringify({ values })
   });
 }
+
+async function updateRow(id, range, values) {
+  return sheets(`${id}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    body: JSON.stringify({ values })
+  });
+}
+
+// -------------------------------------------------------------
+// CENTRAL CLOUD CONFIGURATION (GOOGLE SHEETS BACKED)
+// -------------------------------------------------------------
+let centralConfigLoaded = false;
+let lastCentralConfigFetch = 0;
+
+function mergeRuntimeConfig(custom) {
+  if (!custom || typeof custom !== 'object') return;
+  if (custom.company) runtimeConfig.company = { ...runtimeConfig.company, ...custom.company };
+  if (custom.agents) runtimeConfig.agents = { ...runtimeConfig.agents, ...custom.agents };
+  if (custom.customers) runtimeConfig.customers = { ...runtimeConfig.customers, ...custom.customers };
+  if (custom.products) runtimeConfig.products = { ...runtimeConfig.products, ...custom.products };
+  if (custom.repository) runtimeConfig.repository = { ...runtimeConfig.repository, ...custom.repository };
+  if (custom.googleDrive) runtimeConfig.googleDrive = { ...runtimeConfig.googleDrive, ...custom.googleDrive };
+  if (custom.lastUpdate) runtimeConfig.lastUpdate = custom.lastUpdate;
+  if (custom.updatedBy) runtimeConfig.updatedBy = custom.updatedBy;
+}
+
+async function ensureSheetTab(id, tabName) {
+  try {
+    const meta = await sheets(`${id}?fields=sheets.properties.title`);
+    const titles = (meta?.sheets || []).map(s => s.properties?.title);
+    if (!titles.includes(tabName)) {
+      await sheets(`${id}:batchUpdate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: tabName,
+                  gridProperties: { rowCount: 60, columnCount: 8 }
+                }
+              }
+            }
+          ]
+        })
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn(`ensureSheetTab '${tabName}' warning:`, err.message);
+    return false;
+  }
+}
+
+async function loadCentralConfig(force = false) {
+  if (centralConfigLoaded && !force && (Date.now() - lastCentralConfigFetch < 30000)) {
+    return runtimeConfig;
+  }
+  const regId = runtimeConfig.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+  try {
+    const rows = await readRange(regId, "'_Configurazione'!A1:E30");
+    if (rows && rows.length > 0) {
+      let parsedFromJson = false;
+      for (const r of rows) {
+        if (String(r[0] || '').trim() === 'CONFIG_JSON' && r[1]) {
+          try {
+            const parsed = JSON.parse(r[1]);
+            if (parsed && typeof parsed === 'object') {
+              mergeRuntimeConfig(parsed);
+              parsedFromJson = true;
+              break;
+            }
+          } catch {}
+        }
+      }
+      if (!parsedFromJson) {
+        for (const r of rows) {
+          const k = String(r[0] || '').trim();
+          const v = String(r[1] || '').trim();
+          if (!k || !v) continue;
+          if (k === 'company_spreadsheetId') runtimeConfig.company.spreadsheetId = v;
+          if (k === 'company_tab') runtimeConfig.company.tab = v;
+          if (k === 'company_sheetName') runtimeConfig.company.sheetName = v;
+          if (k === 'agents_spreadsheetId') runtimeConfig.agents.spreadsheetId = v;
+          if (k === 'agents_tab') runtimeConfig.agents.tab = v;
+          if (k === 'agents_fileName') runtimeConfig.agents.fileName = v;
+          if (k === 'customers_spreadsheetId') runtimeConfig.customers.spreadsheetId = v;
+          if (k === 'customers_tab') runtimeConfig.customers.tab = v;
+          if (k === 'customers_fileName') runtimeConfig.customers.fileName = v;
+          if (k === 'products_spreadsheetId') runtimeConfig.products.spreadsheetId = v;
+          if (k === 'products_tab') runtimeConfig.products.tab = v;
+          if (k === 'products_fileName') runtimeConfig.products.fileName = v;
+          if (k === 'repository_spreadsheetId') runtimeConfig.repository.spreadsheetId = v;
+          if (k === 'repository_tabOffers') runtimeConfig.repository.tabOffers = v;
+          if (k === 'repository_tabOrders') runtimeConfig.repository.tabOrders = v;
+          if (k === 'repository_folder') runtimeConfig.repository.folder = v;
+          if (k === 'drive_sourceFolderUrl') runtimeConfig.googleDrive.sourceFolderUrl = v;
+          if (k === 'drive_folderId') runtimeConfig.googleDrive.folderId = v;
+        }
+      }
+      centralConfigLoaded = true;
+      lastCentralConfigFetch = Date.now();
+    }
+  } catch (err) {
+    // Keep runtimeConfig defaults silently
+  }
+  return runtimeConfig;
+}
+
+async function saveCentralConfig(cfg, user) {
+  mergeRuntimeConfig(cfg);
+  centralConfigLoaded = true;
+  lastCentralConfigFetch = Date.now();
+  const now = new Date().toISOString();
+  const userName = user?.name || user?.username || 'Amministrazione';
+  runtimeConfig.lastUpdate = now;
+  runtimeConfig.updatedBy = userName;
+  runtimeConfig.source = 'Configurazione centrale Google Drive';
+
+  const regId = runtimeConfig.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+
+  const rows = [
+    ['CHIAVE_CONFIGURAZIONE', 'VALORE', 'DESCRIZIONE', 'ULTIMO_AGGIORNAMENTO', 'UTENTE'],
+    ['CONFIG_JSON', JSON.stringify(runtimeConfig), 'Payload JSON unificato di configurazione', now, userName],
+    ['company_spreadsheetId', runtimeConfig.company.spreadsheetId || '', 'Spreadsheet ID Dati Azienda', now, userName],
+    ['company_tab', runtimeConfig.company.tab || '', 'Nome Tab Dati Azienda', now, userName],
+    ['company_sheetName', runtimeConfig.company.sheetName || '', 'Nome File Azienda', now, userName],
+    ['agents_spreadsheetId', runtimeConfig.agents.spreadsheetId || '', 'Spreadsheet ID Anagrafica Agenti', now, userName],
+    ['agents_tab', runtimeConfig.agents.tab || '', 'Nome Tab Agenti', now, userName],
+    ['agents_fileName', runtimeConfig.agents.fileName || '', 'Nome File Agenti', now, userName],
+    ['customers_spreadsheetId', runtimeConfig.customers.spreadsheetId || '', 'Spreadsheet ID Clienti', now, userName],
+    ['customers_tab', runtimeConfig.customers.tab || '', 'Nome Tab Clienti', now, userName],
+    ['customers_fileName', runtimeConfig.customers.fileName || '', 'Nome File Clienti', now, userName],
+    ['products_spreadsheetId', runtimeConfig.products.spreadsheetId || '', 'Spreadsheet ID Articoli / Listino', now, userName],
+    ['products_tab', runtimeConfig.products.tab || '', 'Nome Tab Listino', now, userName],
+    ['products_fileName', runtimeConfig.products.fileName || '', 'Nome File Articoli', now, userName],
+    ['repository_spreadsheetId', runtimeConfig.repository.spreadsheetId || '', 'Spreadsheet ID Registro Offerte e Ordini', now, userName],
+    ['repository_tabOffers', runtimeConfig.repository.tabOffers || '', 'Tab Offerte nel Registro', now, userName],
+    ['repository_tabOrders', runtimeConfig.repository.tabOrders || '', 'Tab Ordini nel Registro', now, userName],
+    ['repository_folder', runtimeConfig.repository.folder || '', 'Nome Cartella Repository', now, userName],
+    ['drive_sourceFolderUrl', runtimeConfig.googleDrive.sourceFolderUrl || '', 'URL Cartella Google Drive Condivisa', now, userName],
+    ['drive_folderId', runtimeConfig.googleDrive.folderId || '', 'ID Cartella Google Drive Condivisa', now, userName]
+  ];
+
+  let savedToSheet = false;
+  let sheetError = null;
+  try {
+    await ensureSheetTab(regId, '_Configurazione');
+    await updateRow(regId, "'_Configurazione'!A1:E20", rows);
+    savedToSheet = true;
+  } catch (err) {
+    sheetError = err.message;
+    console.error('Impossibile salvare su Google Sheets _Configurazione:', err.message);
+  }
+
+  return { ok: true, savedToSheet, sheetError, config: runtimeConfig };
+}
+
 
 const companyKeys = {
   AZ001: 'companyName',
@@ -198,16 +364,16 @@ const companyKeys = {
 };
 
 const knownAgentNames = {
-  AG001: 'Federico Micozzi',
-  AG002: 'Francesco Pontrelli',
-  AG003: 'Savino De Palma',
-  AG004: 'Giorgio Fabris',
-  AG005: 'Francesco Poli',
-  AG006: 'Francesco Gelsumini',
-  AG007: 'Andrea Tirella',
-  AG008: 'Vincenzo Antonio Richetta',
-  AG009: 'Daniele Rigamonti',
-  AG010: 'Maurizio Maltinti',
+  AG001: 'Tina Cucci',
+  AG002: 'David Alfano',
+  AG003: 'Bianca Narducci',
+  AG004: 'Loredana Andreoli',
+  AG005: 'Nunzio Sorce',
+  AG006: 'Enzo Nicastro',
+  AG007: 'Linda de gavi',
+  AG008: 'Pietro Vivenza',
+  AG009: 'Paolo Infante',
+  AG010: 'Daniele sama’',
   AG011: 'Andrea Rygiewicz'
 };
 
@@ -421,20 +587,22 @@ async function fetchProductsData(customId, customTab) {
     if (rows.length > 1) {
       const header = rows[0].map(c => String(c).toLowerCase().trim());
       const col = name => header.findIndex(h => h.includes(name));
-      const caIdIdx = col('caid');
-      const caIdx = col('ca') >= 0 ? col('ca') : col('codice');
-      const desIdx = col('desart') >= 0 ? col('desart') : col('descrizione');
-      const brandIdx = col('marca');
-      const sectorIdx = col('jsettore') >= 0 ? col('jsettore') : col('settore');
+      // Exact match to avoid 'ca' matching 'caid', 'catalogo', 'marca' etc.
+      const colExact = name => header.findIndex(h => h === name);
+      const caIdIdx = colExact('caid') >= 0 ? colExact('caid') : col('caid');
+      const caIdx = colExact('ca') >= 0 ? colExact('ca') : col('codice');
+      const desIdx = colExact('desart') >= 0 ? colExact('desart') : col('descrizione');
+      const brandIdx = colExact('marca') >= 0 ? colExact('marca') : col('marca');
+      const sectorIdx = colExact('jsettore') >= 0 ? colExact('jsettore') : col('settore');
       const macroIdx = col('jmacrofamiglia');
       const famIdx = col('jfamiglia');
       const groupIdx = col('q_ubi_art_destab');
       const priceIdx = col('qt_prezzo_pz') >= 0 ? col('qt_prezzo_pz') : col('prezzo');
-      const stockIdx = col('qtesi') >= 0 ? col('qtesi') : col('disp');
+      const stockIdx = colExact('qtesi') >= 0 ? colExact('qtesi') : col('disp');
       const imageIdx = col('url-immagine') >= 0 ? col('url-immagine') : col('disegno');
-      const disegnoIdx = col('disegno');
+      const disegnoIdx = colExact('disegno') >= 0 ? colExact('disegno') : col('disegno');
       const discCodeIdx = col('jscontoven');
-      const maxDiscIdx = col('screale') >= 0 ? col('screale') : col('sconto');
+      const maxDiscIdx = colExact('screale') >= 0 ? colExact('screale') : col('sconto');
 
       const products = [];
       for (let i = 1; i < rows.length; i++) {
@@ -708,12 +876,29 @@ async function runDiagnostics(testCfg = {}) {
       // Check headers on Offerte and Ordini
       await ensureHeader(cfg.registerTabOffers, registerHeaders, cfg.registerId);
       await ensureHeader(cfg.registerTabOrders, registerHeaders, cfg.registerId);
+
+      const meta = await sheets(`${cfg.registerId}?fields=sheets.properties`).catch(() => null);
+      const tabInfos = (meta?.sheets || []).map(s => ({
+        title: s.properties?.title,
+        sheetId: s.properties?.sheetId,
+        rowCount: s.properties?.gridProperties?.rowCount
+      }));
+      const offerRows = await readRange(cfg.registerId, `'${cfg.registerTabOffers}'!A1:B1005`).catch(() => []);
+      const filledRows = [];
+      for (let i = 0; i < offerRows.length; i++) {
+        const a = offerRows[i]?.[0], b = offerRows[i]?.[1];
+        if (a || b) filledRows.push({ rowNumber: i + 1, colA: a, colB: b });
+      }
+
       results.repository = {
         status: 'ok',
         icon: '🟢',
         label: 'Scrittura attiva',
         message: 'Permessi di scrittura e struttura schede confermati',
-        details: `Foglio ID: ${cfg.registerId} · Schede "${cfg.registerTabOffers}" e "${cfg.registerTabOrders}"`
+        details: `Foglio ID: ${cfg.registerId} · Schede "${cfg.registerTabOffers}" e "${cfg.registerTabOrders}"`,
+        tabs: tabInfos,
+        filledRowsCount: filledRows.length,
+        filledRows: filledRows.slice(-10)
       };
     } catch (err) {
       results.repository = {
@@ -761,8 +946,8 @@ async function ensureHeader(tab, headers, customRegId) {
   }
 }
 
-async function listDocs(tab, user) {
-  const regId = runtimeConfig.repository.spreadsheetId;
+async function listDocs(tab, user, customId) {
+  const regId = customId || runtimeConfig.repository.spreadsheetId;
   try {
     const rawRows = await readRange(regId, `'${tab}'!A1:Z1000`);
     if (!rawRows || !rawRows.length) return [];
@@ -886,8 +1071,8 @@ async function listDocs(tab, user) {
   }
 }
 
-async function createDoc(tab, body, user) {
-  const regId = runtimeConfig.repository.spreadsheetId;
+async function createDoc(tab, body, user, customId) {
+  const regId = body?.spreadsheetId || body?.repositorySpreadsheetId || customId || runtimeConfig.repository.spreadsheetId;
   const number = body.offerNumber || body.orderNumber;
   const id = body.id || crypto.randomUUID();
   if (!number || !body.customerName) {
@@ -1008,8 +1193,29 @@ async function createDoc(tab, body, user) {
       ];
     }
 
-    await append(regId, `'${tab}'!A:Z`, [row]);
-    return json(201, { ok: true, id, number, timestamp: now });
+    // Find the FIRST empty row directly under the header (e.g. Row 5)
+    const searchRows = await readRange(regId, `'${tab}'!A1:B1000`).catch(() => []);
+    let nextRow = -1;
+    const startIdx = headerIdx >= 0 ? headerIdx + 1 : 1;
+    for (let i = startIdx; i < Math.max(searchRows.length, startIdx + 1); i++) {
+      const colA = String(searchRows[i]?.[0] || '').trim();
+      const colB = String(searchRows[i]?.[1] || '').trim();
+      if (!colA && !colB) {
+        nextRow = i + 1; // 1-indexed row number in Google Sheets
+        break;
+      }
+    }
+    if (nextRow < 0) {
+      nextRow = searchRows.length ? searchRows.length + 1 : 5;
+    }
+
+    try {
+      await updateRow(regId, `'${tab}'!A${nextRow}`, [row]);
+    } catch {
+      await append(regId, `'${tab}'!A:Z`, [row]);
+    }
+
+    return json(201, { ok: true, id, number, rowNumber: nextRow, timestamp: now });
   } catch (err) {
     console.error(`Error saving ${tab} to Google Sheets:`, err);
     return json(500, { error: `Errore salvataggio su Google Sheets: ${err.message}` });
@@ -1021,6 +1227,9 @@ export default async (request, context) => {
   try {
     const url = new URL(request.url);
     const path = (context.params?.splat || url.pathname.split('/api/')[1] || '').replace(/^\/+|\/+$/g, '');
+
+    // Ensure central cloud config is active
+    await loadCentralConfig();
 
     // Auth endpoints
     if (path === 'login' && request.method === 'POST') {
@@ -1049,45 +1258,68 @@ export default async (request, context) => {
     // Config endpoints
     if (path === 'config') {
       if (request.method === 'POST') {
+        const user = session(request);
         const body = await request.json().catch(() => ({}));
-        if (body && typeof body === 'object') {
-          if (body.company) runtimeConfig.company = { ...runtimeConfig.company, ...body.company };
-          if (body.agents) runtimeConfig.agents = { ...runtimeConfig.agents, ...body.agents };
-          if (body.customers) runtimeConfig.customers = { ...runtimeConfig.customers, ...body.customers };
-          if (body.products) runtimeConfig.products = { ...runtimeConfig.products, ...body.products };
-          if (body.repository) runtimeConfig.repository = { ...runtimeConfig.repository, ...body.repository };
-          if (body.googleDrive) runtimeConfig.googleDrive = { ...runtimeConfig.googleDrive, ...body.googleDrive };
-        }
-        return json(200, { ok: true, config: runtimeConfig, message: 'Configurazione aggiornata con successo' });
+        const saveRes = await saveCentralConfig(body, user);
+        return json(200, {
+          ok: true,
+          config: runtimeConfig,
+          savedToSheet: saveRes.savedToSheet,
+          sheetError: saveRes.sheetError,
+          message: saveRes.savedToSheet
+            ? 'Configurazione centrale salvata su Google Drive e condivisa con tutti i dispositivi'
+            : 'Configurazione aggiornata in memoria'
+        });
+      }
+      if (url.searchParams.get('fresh') === '1') {
+        await loadCentralConfig(true);
       }
       return json(200, { ok: true, config: runtimeConfig });
     }
 
     // Public / App data endpoints (with offline fallback & live Google Sheets)
+    // Each endpoint accepts ?id=SPREADSHEET_ID&tab=TAB_NAME query params
+    // to avoid dependency on server-side runtimeConfig (stateless functions!)
     if (path === 'company' && request.method === 'GET') {
-      const compRes = await fetchCompanyData();
+      const compRes = await fetchCompanyData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       return json(200, compRes);
     }
 
     if (path === 'settings' && request.method === 'GET') {
-      const compRes = await fetchCompanyData();
+      const compRes = await fetchCompanyData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       const user = session(request);
       return json(200, { settings: { company_profile: compRes.company }, company: compRes.company, canEdit: user?.role === 'admin' });
     }
 
     if (path === 'agents' && request.method === 'GET') {
-      const agRes = await fetchAgentsData();
+      const agRes = await fetchAgentsData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       return json(200, agRes);
     }
 
     if (path === 'customers' && request.method === 'GET') {
       const user = session(request);
-      const clRes = await fetchCustomersData(undefined, undefined, user);
+      const clRes = await fetchCustomersData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined,
+        user
+      );
       return json(200, clRes);
     }
 
     if (path === 'products' && request.method === 'GET') {
-      const prRes = await fetchProductsData();
+      const prRes = await fetchProductsData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       return json(200, prRes);
     }
 
@@ -1101,20 +1333,22 @@ export default async (request, context) => {
 
     if (path === 'offers' && request.method === 'GET') {
       if (!user) return json(401, { error: 'Accesso non autorizzato' });
-      return json(200, { offers: await listDocs(runtimeConfig.repository.tabOffers || 'Offerte', user), user });
+      const customId = url.searchParams.get('id') || undefined;
+      return json(200, { offers: await listDocs(runtimeConfig.repository.tabOffers || 'Offerte', user, customId), user });
     }
 
     if (path === 'orders' && request.method === 'GET') {
       if (!user) return json(401, { error: 'Accesso non autorizzato' });
-      return json(200, { orders: await listDocs(runtimeConfig.repository.tabOrders || 'Ordini', user), user });
+      const customId = url.searchParams.get('id') || undefined;
+      return json(200, { orders: await listDocs(runtimeConfig.repository.tabOrders || 'Ordini', user, customId), user });
     }
 
     if (path === 'offers' && request.method === 'POST') {
-      return createDoc(runtimeConfig.repository.tabOffers || 'Offerte', await request.json(), user);
+      return createDoc(runtimeConfig.repository.tabOffers || 'Offerte', await request.json(), user, url.searchParams.get('id') || undefined);
     }
 
     if (path === 'orders' && request.method === 'POST') {
-      return createDoc(runtimeConfig.repository.tabOrders || 'Ordini', await request.json(), user);
+      return createDoc(runtimeConfig.repository.tabOrders || 'Ordini', await request.json(), user, url.searchParams.get('id') || undefined);
     }
 
     return json(404, { error: 'Servizio non disponibile: ' + path });

@@ -120,6 +120,9 @@ async function loadData() {
   // Pass spreadsheet IDs directly as query params (Netlify Functions are stateless!)
   if (navigator.onLine) {
     try {
+      if (window.companyConfigPromise) {
+        try { await window.companyConfigPromise; } catch {}
+      }
       const cfg = window.companyConfig || {};
       const qs = (id, tab) => {
         const params = new URLSearchParams();
