@@ -174,8 +174,15 @@ async function readRange(id, range) {
 }
 
 async function append(id, range, values) {
-  return sheets(`${id}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  return sheets(`${id}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
     method: 'POST',
+    body: JSON.stringify({ values })
+  });
+}
+
+async function updateRow(id, range, values) {
+  return sheets(`${id}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
     body: JSON.stringify({ values })
   });
 }
@@ -718,12 +725,29 @@ async function runDiagnostics(testCfg = {}) {
       // Check headers on Offerte and Ordini
       await ensureHeader(cfg.registerTabOffers, registerHeaders, cfg.registerId);
       await ensureHeader(cfg.registerTabOrders, registerHeaders, cfg.registerId);
+
+      const meta = await sheets(`${cfg.registerId}?fields=sheets.properties`).catch(() => null);
+      const tabInfos = (meta?.sheets || []).map(s => ({
+        title: s.properties?.title,
+        sheetId: s.properties?.sheetId,
+        rowCount: s.properties?.gridProperties?.rowCount
+      }));
+      const offerRows = await readRange(cfg.registerId, `'${cfg.registerTabOffers}'!A1:B1005`).catch(() => []);
+      const filledRows = [];
+      for (let i = 0; i < offerRows.length; i++) {
+        const a = offerRows[i]?.[0], b = offerRows[i]?.[1];
+        if (a || b) filledRows.push({ rowNumber: i + 1, colA: a, colB: b });
+      }
+
       results.repository = {
         status: 'ok',
         icon: '🟢',
         label: 'Scrittura attiva',
         message: 'Permessi di scrittura e struttura schede confermati',
-        details: `Foglio ID: ${cfg.registerId} · Schede "${cfg.registerTabOffers}" e "${cfg.registerTabOrders}"`
+        details: `Foglio ID: ${cfg.registerId} · Schede "${cfg.registerTabOffers}" e "${cfg.registerTabOrders}"`,
+        tabs: tabInfos,
+        filledRowsCount: filledRows.length,
+        filledRows: filledRows.slice(-10)
       };
     } catch (err) {
       results.repository = {
@@ -1018,8 +1042,24 @@ async function createDoc(tab, body, user, customId) {
       ];
     }
 
-    await append(regId, `'${tab}'!A:Z`, [row]);
-    return json(201, { ok: true, id, number, timestamp: now });
+    // Find exact next empty row directly under header
+    const searchRows = await readRange(regId, `'${tab}'!A1:B1000`).catch(() => []);
+    let nextRow = (headerIdx >= 0 ? headerIdx + 1 : 1) + 1; // e.g. 5 if header is row 4
+    for (let i = (headerIdx >= 0 ? headerIdx + 1 : 1); i < searchRows.length; i++) {
+      const colA = String(searchRows[i]?.[0] || '').trim();
+      const colB = String(searchRows[i]?.[1] || '').trim();
+      if (colA || colB) {
+        nextRow = i + 2;
+      }
+    }
+
+    try {
+      await updateRow(regId, `'${tab}'!A${nextRow}`, [row]);
+    } catch {
+      await append(regId, `'${tab}'!A:Z`, [row]);
+    }
+
+    return json(201, { ok: true, id, number, rowNumber: nextRow, timestamp: now });
   } catch (err) {
     console.error(`Error saving ${tab} to Google Sheets:`, err);
     return json(500, { error: `Errore salvataggio su Google Sheets: ${err.message}` });
