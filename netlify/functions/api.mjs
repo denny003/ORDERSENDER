@@ -105,7 +105,7 @@ let runtimeConfig = {
   repository: {
     folder: 'Repository',
     fileName: 'Registro offerte e ordini',
-    spreadsheetId: cleanEnvId(process.env.REGISTER_SPREADSHEET_ID) || cleanEnvId(process.env.REPOSITORY_SPREADSHEET_ID) || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc',
+    spreadsheetId: cleanEnvId(process.env.REGISTER_SPREADSHEET_ID) || cleanEnvId(process.env.REPOSITORY_SPREADSHEET_ID) || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc',
     tabOffers: 'Offerte',
     tabOrders: 'Ordini'
   },

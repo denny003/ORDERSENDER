@@ -46,7 +46,7 @@ const defaultConfig = {
   repository: {
     folder: "Repository",
     fileName: "Registro offerte e ordini",
-    spreadsheetId: "1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc",
+    spreadsheetId: "1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc",
     tabOffers: "Offerte",
     tabOrders: "Ordini"
   },

@@ -497,7 +497,7 @@ function exportExcel() {
 
 function submissionPayload() {
   const c = customerData(), t = totals(), agent = currentAgent(), number = offerNumber();
-  const repoId = window.companyConfig?.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc';
+  const repoId = window.companyConfig?.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
   const base = {
     id: localStorage.getItem(`submission-${number}`) || crypto.randomUUID(),
     spreadsheetId: repoId,
