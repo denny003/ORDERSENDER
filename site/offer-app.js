@@ -324,13 +324,13 @@ function renderCatalog() {
   $('catalogGrid').innerHTML = shown.map(p => {
     let photoHtml;
     if (p.imageUrl && (p.imageUrl.startsWith('http://') || p.imageUrl.startsWith('https://'))) {
-      photoHtml = `<img src="${esc(p.imageUrl)}" alt="${esc(p.description)}" loading="lazy" onerror="this.parentElement.innerHTML='FOTO NON DISPONIBILE'">`;
+      photoHtml = `<img src="${esc(p.imageUrl)}" alt="${esc(p.description)}" loading="lazy" onerror="this.parentElement.innerHTML='<small>FOTO NON DISPONIBILE</small>'">`;
     } else if (p.imageRef) {
       photoHtml = `<small>${esc(p.imageRef.split('\\').pop())}</small>`;
     } else {
-      photoHtml = 'FOTO NON DISPONIBILE';
+      photoHtml = '<small>FOTO NON DISPONIBILE</small>';
     }
-    return `<button class="catalog-card" data-catalog-code="${esc(p.code)}"><div class="product-photo">${photoHtml}</div><div class="catalog-info"><strong>${esc(p.code)}</strong><span>${esc(p.description)}</span><small>${esc([p.brand, p.macroFamily, p.family].filter(Boolean).join(' · '))}</small><b>${euro.format(p.price)}</b></div></button>`;
+    return `<button type="button" class="catalog-card" data-catalog-code="${esc(p.code)}"><div class="product-photo">${photoHtml}</div><div class="catalog-info"><strong>${esc(p.code)}</strong><span>${esc(p.description)}</span><small>${esc([p.brand, p.macroFamily, p.family].filter(Boolean).join(' · '))}</small><b>${euro.format(p.price)}</b></div></button>`;
   }).join('') || '<div class="empty-state">Nessun articolo con questi filtri</div>';
   $('loadMoreCatalog').classList.toggle('hidden', shown.length >= matches.length);
   $('loadMoreCatalog').textContent = `Mostra altri (${matches.length - shown.length})`;
@@ -497,8 +497,11 @@ function exportExcel() {
 
 function submissionPayload() {
   const c = customerData(), t = totals(), agent = currentAgent(), number = offerNumber();
+  const repoId = window.companyConfig?.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc';
   const base = {
     id: localStorage.getItem(`submission-${number}`) || crypto.randomUUID(),
+    spreadsheetId: repoId,
+    repositorySpreadsheetId: repoId,
     agentCode: agent.id,
     agentName: agent.name,
     customerId: c.id,

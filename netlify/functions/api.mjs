@@ -763,8 +763,8 @@ async function ensureHeader(tab, headers, customRegId) {
   }
 }
 
-async function listDocs(tab, user) {
-  const regId = runtimeConfig.repository.spreadsheetId;
+async function listDocs(tab, user, customId) {
+  const regId = customId || runtimeConfig.repository.spreadsheetId;
   try {
     const rawRows = await readRange(regId, `'${tab}'!A1:Z1000`);
     if (!rawRows || !rawRows.length) return [];
@@ -888,8 +888,8 @@ async function listDocs(tab, user) {
   }
 }
 
-async function createDoc(tab, body, user) {
-  const regId = runtimeConfig.repository.spreadsheetId;
+async function createDoc(tab, body, user, customId) {
+  const regId = body?.spreadsheetId || body?.repositorySpreadsheetId || customId || runtimeConfig.repository.spreadsheetId;
   const number = body.offerNumber || body.orderNumber;
   const id = body.id || crypto.randomUUID();
   if (!number || !body.customerName) {
@@ -1121,20 +1121,22 @@ export default async (request, context) => {
 
     if (path === 'offers' && request.method === 'GET') {
       if (!user) return json(401, { error: 'Accesso non autorizzato' });
-      return json(200, { offers: await listDocs(runtimeConfig.repository.tabOffers || 'Offerte', user), user });
+      const customId = url.searchParams.get('id') || undefined;
+      return json(200, { offers: await listDocs(runtimeConfig.repository.tabOffers || 'Offerte', user, customId), user });
     }
 
     if (path === 'orders' && request.method === 'GET') {
       if (!user) return json(401, { error: 'Accesso non autorizzato' });
-      return json(200, { orders: await listDocs(runtimeConfig.repository.tabOrders || 'Ordini', user), user });
+      const customId = url.searchParams.get('id') || undefined;
+      return json(200, { orders: await listDocs(runtimeConfig.repository.tabOrders || 'Ordini', user, customId), user });
     }
 
     if (path === 'offers' && request.method === 'POST') {
-      return createDoc(runtimeConfig.repository.tabOffers || 'Offerte', await request.json(), user);
+      return createDoc(runtimeConfig.repository.tabOffers || 'Offerte', await request.json(), user, url.searchParams.get('id') || undefined);
     }
 
     if (path === 'orders' && request.method === 'POST') {
-      return createDoc(runtimeConfig.repository.tabOrders || 'Ordini', await request.json(), user);
+      return createDoc(runtimeConfig.repository.tabOrders || 'Ordini', await request.json(), user, url.searchParams.get('id') || undefined);
     }
 
     return json(404, { error: 'Servizio non disponibile: ' + path });

@@ -8,6 +8,7 @@
   <link rel="icon" href="/favicon.svg">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/config/companyConfig.js"></script>
   <style>
     :root {
       --navy: #0b2942;
@@ -979,7 +980,9 @@
       // 2. Load practices from API or fallback to cached
       try {
         $('rows').innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">Sincronizzazione registro Google Sheets…</div>';
-        const [a, b] = await Promise.all([api('offers'), api('orders')]);
+        const cfg = window.companyConfig || {};
+        const regParam = cfg.repository?.spreadsheetId ? `?id=${encodeURIComponent(cfg.repository.spreadsheetId)}` : '';
+        const [a, b] = await Promise.all([api(`offers${regParam}`), api(`orders${regParam}`)]);
         
         allPractices = [
           ...(a.offers || []).map(x => ({ ...x, type: 'Offerta', number: x.offer_number || x.offerNumber || x.number })),
