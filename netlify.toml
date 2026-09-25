@@ -17,6 +17,16 @@
   to = "/configurazione.html"
   status = 200
 
+[[redirects]]
+  from = "/gestione-ordini"
+  to = "/gestione-ordini.html"
+  status = 200
+
+[[redirects]]
+  from = "/giro-visite"
+  to = "/giro-visite.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]

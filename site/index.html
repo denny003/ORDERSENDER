@@ -620,6 +620,8 @@
         </div>
       </div>
       <div class="top-actions">
+        <a id="adminOrdersTop" class="btn-top hidden" href="/gestione-ordini.html">📦 Ordini & Magazzino</a>
+        <a id="visitsTop" class="btn-top" href="/giro-visite.html">📅 Giro Visite</a>
         <a id="adminConfigTop" class="btn-top hidden" href="/configurazione.html">⚙️ Config</a>
         <button id="logout" class="btn-top hidden">Esci</button>
       </div>
@@ -673,6 +675,8 @@
         </div>
 
         <div class="sub-actions">
+          <a class="btn-sub hidden" id="adminOrdersBtn" href="/gestione-ordini.html">📦 Gestione Lavorazione Ordini & Magazzino</a>
+          <a class="btn-sub" id="visitsBtn" href="/giro-visite.html">📅 Piano Marketing & Giro Visite</a>
           <a class="btn-sub hidden" id="adminConfigBtn" href="/configurazione.html">⚙️ Configurazione Google Drive</a>
         </div>
       </div>
@@ -837,6 +841,17 @@
 
             <div class="item-customer">${custName}</div>
 
+            ${isOffer ? `
+            <div style="display:flex; gap:6px; margin: 8px 0 4px;">
+              <button type="button" class="btn-sub" style="padding:4px 8px; font-size:.76rem; background:#ecfdf5; border-color:#a7f3d0; color:#065f46;" onclick="event.stopPropagation(); convertOfferToOrder('${docNum}')">⚡ Trasforma in Ordine</button>
+              <button type="button" class="btn-sub" style="padding:4px 8px; font-size:.76rem;" onclick="event.stopPropagation(); createOfferRevision('${docNum}')">✏️ Revisione</button>
+            </div>
+            ` : (p.ddt_number || p.carrier || p.shipping_date || p.workflow_status ? `
+            <div style="font-size:.78rem; background:#f0fdf4; color:#166534; padding:4px 8px; border-radius:6px; margin: 6px 0;">
+              🚚 <strong>${p.workflow_status === 'spedito' ? 'Spedito' : p.workflow_status === 'fatturato' ? 'Fatturato' : p.workflow_status === 'magazzino' ? 'In magazzino' : 'In lavorazione'}</strong> ${p.carrier ? `con ${p.carrier}` : ''} ${p.ddt_number ? `· DDT: ${p.ddt_number}` : ''} ${p.tracking_number ? `· Track: ${p.tracking_number}` : ''}
+            </div>
+            ` : '')}
+
             <div class="item-bottom">
               <div class="item-meta">
                 <div>📅 ${dateStr}</div>
@@ -903,6 +918,31 @@
           <span>Ultimo aggiornamento</span>
           <strong>${formatDate(item.updated_at)}</strong>
         </div>` : ''}
+        ${item.ddt_number ? `
+        <div class="detail-row">
+          <span>Numero Bolla / DDT</span>
+          <strong>${item.ddt_number} ${item.ddt_date ? `(${item.ddt_date})` : ''}</strong>
+        </div>` : ''}
+        ${item.carrier ? `
+        <div class="detail-row">
+          <span>Corriere / Vettore</span>
+          <strong>${item.carrier}</strong>
+        </div>` : ''}
+        ${item.tracking_number ? `
+        <div class="detail-row">
+          <span>Numero Tracking</span>
+          <strong>${item.tracking_link ? `<a href="${item.tracking_link}" target="_blank">${item.tracking_number} ↗</a>` : item.tracking_number}</strong>
+        </div>` : ''}
+        ${item.shipping_date ? `
+        <div class="detail-row">
+          <span>Data Spedizione</span>
+          <strong>${formatDate(item.shipping_date)}</strong>
+        </div>` : ''}
+        ${item.origin_offer_id ? `
+        <div class="detail-row">
+          <span>Offerta di origine</span>
+          <strong>${item.origin_offer_id}</strong>
+        </div>` : ''}
         ${item.notes ? `
         <div style="margin-top:6px;">
           <span style="display:block; font-size:.8rem; color:var(--muted); margin-bottom:4px;">Note operative / azienda:</span>
@@ -915,6 +955,40 @@
       // Set link for new practice with customer
       $('modalNewFromCustomer').href = `/offerta?new=1&type=${isOffer ? 'offer' : 'order'}`;
       $('detailModal').showModal();
+    }
+
+    async function convertOfferToOrder(offerNumber) {
+      if (!confirm(`Vuoi convertire immediatamente l'offerta ${offerNumber} in un nuovo Ordine di vendita?`)) return;
+      try {
+        const res = await fetch('/api/offers/convert-to-order', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ offerNumber })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Errore durante la conversione');
+        alert(`Offerta convertita con successo!\nCreato Ordine: ${d.orderNumber}`);
+        await load();
+      } catch (err) {
+        alert(`Errore: ${err.message}`);
+      }
+    }
+
+    async function createOfferRevision(offerNumber) {
+      if (!confirm(`Vuoi creare una nuova revisione numerata dell'offerta ${offerNumber}?`)) return;
+      try {
+        const res = await fetch('/api/offers/revision', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ offerNumber })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Errore creazione revisione');
+        alert(`Revisione creata con successo: ${d.newOfferNumber}`);
+        await load();
+      } catch (err) {
+        alert(`Errore: ${err.message}`);
+      }
     }
 
     $('modalClose').onclick = () => $('detailModal').close();
@@ -975,6 +1049,8 @@
       if (currentUser.role === 'admin') {
         $('adminConfigBtn').classList.remove('hidden');
         $('adminConfigTop').classList.remove('hidden');
+        if ($('adminOrdersBtn')) $('adminOrdersBtn').classList.remove('hidden');
+        if ($('adminOrdersTop')) $('adminOrdersTop').classList.remove('hidden');
       }
 
       // 2. Load practices from API or fallback to cached
@@ -983,8 +1059,9 @@
         if (window.companyConfigPromise) {
           try { await window.companyConfigPromise; } catch {}
         }
-        const cfg = window.companyConfig || {};
-        const regParam = cfg.repository?.spreadsheetId ? `?id=${encodeURIComponent(cfg.repository.spreadsheetId)}` : '';
+        const rawRepo = window.companyConfig?.repository?.spreadsheetId;
+        const repoId = (rawRepo && rawRepo.length >= 20 && !rawRepo.includes('1mnW')) ? rawRepo : '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+        const regParam = `?id=${encodeURIComponent(repoId)}`;
         const [a, b] = await Promise.all([api(`offers${regParam}`), api(`orders${regParam}`)]);
         
         allPractices = [

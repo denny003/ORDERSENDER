@@ -167,10 +167,10 @@
 
     <!-- AVVISO CONDIVISIONE CENTRALE -->
     <div style="background: #eef6fc; border: 1px solid #bce1fb; border-left: 4px solid #0284c7; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; display: flex; align-items: center; gap: 14px;">
-      <div style="font-size: 1.6rem;">🌐</div>
+      <div style="font-size: 1.6rem;">🔒</div>
       <div style="font-size: .88rem; color: #0c4a6e; line-height: 1.45;">
-        <strong style="display:block; font-size: .95rem; margin-bottom: 2px;">Configurazione Centrale Condivisa Cloud</strong>
-        Tutti i parametri e gli ID dei fogli salvati in questa pagina vengono memorizzati direttamente sul foglio Google Drive e <strong>condivisi istantaneamente con tutti gli Agenti e dispositivi</strong>. Gli agenti possono usare l'app da smartphone senza dover inserire o toccare alcun parametro.
+        <strong style="display:block; font-size: .95rem; margin-bottom: 2px;">ID Google Drive Ufficiali Integrati nelle Variabili di Sistema</strong>
+        Gli Spreadsheet ID dei file in uso (definiti in <code>GOOGLE-DRIVE/dati-configurazione</code>) sono memorizzati in modo permanente nel codice e nelle variabili di sistema. <strong>Un Agente non dovrà MAI inserire alcun ID</strong>: qualunque smartphone, tablet o PC caricherà in automatico i fogli corretti.
       </div>
     </div>
 
@@ -300,73 +300,97 @@
       setTimeout(() => t.classList.remove('show'), 2600);
     };
 
+    function getCanonicalDefaults() {
+      return (window.OFFICIAL_SYSTEM_SPREADSHEETS && window.OFFICIAL_SYSTEM_SPREADSHEETS.company) ? window.OFFICIAL_SYSTEM_SPREADSHEETS : {
+        company: { sheetName: "Dati_Azienda_e_Mandanti", spreadsheetId: "1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M", tab: "Dati azienda" },
+        agents: { fileName: "Anagrafica_Agenti", spreadsheetId: "13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU", tab: "Agenti" },
+        customers: { fileName: "clienti", spreadsheetId: "1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8", tab: "clienti" },
+        products: { fileName: "Articoli", spreadsheetId: "17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE", tab: "q_listino_prezzi_catalogo" },
+        repository: { folder: "Repository", fileName: "Registro offerte e ordini", spreadsheetId: "1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc", tabOffers: "Offerte", tabOrders: "Ordini" },
+        googleDrive: { sourceFolderUrl: "https://drive.google.com/drive/folders/1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9", folderId: "1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9" }
+      };
+    }
+
     function populateForm(cfg) {
-      if (!cfg) return;
+      const def = getCanonicalDefaults();
       const activeEl = document.activeElement;
-      const setVal = (id, val) => {
+      const setVal = (id, val, fallback) => {
         const el = $(id);
         if (!el) return;
-        // Never overwrite an input that the user is actively focused on or editing
         if (el === activeEl) return;
-        if (val !== undefined && val !== null) el.value = val;
+        const finalVal = (val && String(val).trim() && String(val).trim().length >= 20 && !String(val).includes('1mnW') && !String(val).includes('1N6ZcGa')) ? String(val).trim() : fallback;
+        el.value = finalVal;
       };
 
       // Azienda
-      setVal('companySheetName', cfg.company?.sheetName || 'Dati_Azienda_e_Mandanti');
-      setVal('companySpreadsheetId', cfg.company?.spreadsheetId || '');
-      setVal('companyTab', cfg.company?.tab || 'Dati azienda');
+      if ($('companySheetName') && $('companySheetName') !== activeEl) $('companySheetName').value = cfg?.company?.sheetName || def.company.sheetName;
+      setVal('companySpreadsheetId', cfg?.company?.spreadsheetId, def.company.spreadsheetId);
+      if ($('companyTab') && $('companyTab') !== activeEl) $('companyTab').value = cfg?.company?.tab || def.company.tab;
 
       // Agenti
-      setVal('agentsFileName', cfg.agents?.fileName || 'Anagrafica_Agenti');
-      setVal('agentsSpreadsheetId', cfg.agents?.spreadsheetId || '');
-      setVal('agentsTab', cfg.agents?.tab || 'Agenti');
+      if ($('agentsFileName') && $('agentsFileName') !== activeEl) $('agentsFileName').value = cfg?.agents?.fileName || def.agents.fileName;
+      setVal('agentsSpreadsheetId', cfg?.agents?.spreadsheetId, def.agents.spreadsheetId);
+      if ($('agentsTab') && $('agentsTab') !== activeEl) $('agentsTab').value = cfg?.agents?.tab || def.agents.tab;
 
       // Clienti
-      setVal('customersFileName', cfg.customers?.fileName || 'clienti');
-      setVal('customersSpreadsheetId', cfg.customers?.spreadsheetId || '');
-      setVal('customersTab', cfg.customers?.tab || 'clienti');
+      if ($('customersFileName') && $('customersFileName') !== activeEl) $('customersFileName').value = cfg?.customers?.fileName || def.customers.fileName;
+      setVal('customersSpreadsheetId', cfg?.customers?.spreadsheetId, def.customers.spreadsheetId);
+      if ($('customersTab') && $('customersTab') !== activeEl) $('customersTab').value = cfg?.customers?.tab || def.customers.tab;
 
       // Articoli
-      setVal('productsFileName', cfg.products?.fileName || 'Articoli');
-      setVal('productsSpreadsheetId', cfg.products?.spreadsheetId || '');
-      setVal('productsTab', cfg.products?.tab || 'q_listino_prezzi_catalogo');
+      if ($('productsFileName') && $('productsFileName') !== activeEl) $('productsFileName').value = cfg?.products?.fileName || def.products.fileName;
+      setVal('productsSpreadsheetId', cfg?.products?.spreadsheetId, def.products.spreadsheetId);
+      if ($('productsTab') && $('productsTab') !== activeEl) $('productsTab').value = cfg?.products?.tab || def.products.tab;
 
       // Repository
-      setVal('repositoryFolder', cfg.repository?.folder || 'Repository');
-      setVal('registerFileName', cfg.repository?.fileName || 'Registro offerte e ordini');
-      setVal('registerSpreadsheetId', cfg.repository?.spreadsheetId || '');
-      setVal('registerTabOffers', cfg.repository?.tabOffers || 'Offerte');
-      setVal('registerTabOrders', cfg.repository?.tabOrders || 'Ordini');
+      if ($('repositoryFolder') && $('repositoryFolder') !== activeEl) $('repositoryFolder').value = cfg?.repository?.folder || def.repository.folder;
+      if ($('registerFileName') && $('registerFileName') !== activeEl) $('registerFileName').value = cfg?.repository?.fileName || def.repository.fileName;
+      setVal('registerSpreadsheetId', cfg?.repository?.spreadsheetId, def.repository.spreadsheetId);
+      if ($('registerTabOffers') && $('registerTabOffers') !== activeEl) $('registerTabOffers').value = cfg?.repository?.tabOffers || def.repository.tabOffers;
+      if ($('registerTabOrders') && $('registerTabOrders') !== activeEl) $('registerTabOrders').value = cfg?.repository?.tabOrders || def.repository.tabOrders;
     }
 
     function readForm() {
+      const def = getCanonicalDefaults();
+      const valOrDef = (id, defVal) => {
+        const el = $(id);
+        if (!el) return defVal;
+        const v = el.value.trim();
+        if (!v || v.length < 20 || v.includes('1mnW') || v.includes('1N6ZcGa')) return defVal;
+        return v;
+      };
+
       return {
         company: {
-          sheetName: $('companySheetName').value.trim(),
-          spreadsheetId: $('companySpreadsheetId').value.trim(),
-          tab: $('companyTab').value.trim()
+          sheetName: ($('companySheetName')?.value || '').trim() || def.company.sheetName,
+          spreadsheetId: valOrDef('companySpreadsheetId', def.company.spreadsheetId),
+          tab: ($('companyTab')?.value || '').trim() || def.company.tab
         },
         agents: {
-          fileName: $('agentsFileName').value.trim(),
-          spreadsheetId: $('agentsSpreadsheetId').value.trim(),
-          tab: $('agentsTab').value.trim()
+          fileName: ($('agentsFileName')?.value || '').trim() || def.agents.fileName,
+          spreadsheetId: valOrDef('agentsSpreadsheetId', def.agents.spreadsheetId),
+          tab: ($('agentsTab')?.value || '').trim() || def.agents.tab
         },
         customers: {
-          fileName: $('customersFileName').value.trim(),
-          spreadsheetId: $('customersSpreadsheetId').value.trim(),
-          tab: $('customersTab').value.trim()
+          fileName: ($('customersFileName')?.value || '').trim() || def.customers.fileName,
+          spreadsheetId: valOrDef('customersSpreadsheetId', def.customers.spreadsheetId),
+          tab: ($('customersTab')?.value || '').trim() || def.customers.tab
         },
         products: {
-          fileName: $('productsFileName').value.trim(),
-          spreadsheetId: $('productsSpreadsheetId').value.trim(),
-          tab: $('productsTab').value.trim()
+          fileName: ($('productsFileName')?.value || '').trim() || def.products.fileName,
+          spreadsheetId: valOrDef('productsSpreadsheetId', def.products.spreadsheetId),
+          tab: ($('productsTab')?.value || '').trim() || def.products.tab
         },
         repository: {
-          folder: $('repositoryFolder').value.trim(),
-          fileName: $('registerFileName').value.trim(),
-          spreadsheetId: $('registerSpreadsheetId').value.trim(),
-          tabOffers: $('registerTabOffers').value.trim(),
-          tabOrders: $('registerTabOrders').value.trim()
+          folder: ($('repositoryFolder')?.value || '').trim() || def.repository.folder,
+          fileName: ($('registerFileName')?.value || '').trim() || def.repository.fileName,
+          spreadsheetId: valOrDef('registerSpreadsheetId', def.repository.spreadsheetId),
+          tabOffers: ($('registerTabOffers')?.value || '').trim() || def.repository.tabOffers,
+          tabOrders: ($('registerTabOrders')?.value || '').trim() || def.repository.tabOrders
+        },
+        googleDrive: {
+          sourceFolderUrl: def.googleDrive.sourceFolderUrl,
+          folderId: def.googleDrive.folderId
         }
       };
     }
@@ -485,27 +509,22 @@
       await checkDiagnostics();
     };
 
-    $('btnReset').onclick = () => {
-      if (confirm('Vuoi ripristinare i valori predefiniti per tutti i fogli?')) {
-        const defaults = {
-          company: { sheetName: 'Dati_Azienda_e_Mandanti', spreadsheetId: '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M', tab: 'Dati azienda' },
-          agents: { fileName: 'Anagrafica_Agenti', spreadsheetId: '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU', tab: 'Agenti' },
-          customers: { fileName: 'clienti', spreadsheetId: '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8', tab: 'clienti' },
-          products: { fileName: 'Articoli', spreadsheetId: '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE', tab: 'q_listino_prezzi_catalogo' },
-          repository: { folder: 'Repository', fileName: 'Registro offerte e ordini', spreadsheetId: '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc', tabOffers: 'Offerte', tabOrders: 'Ordini' }
-        };
+    $('btnReset').onclick = async () => {
+      if (confirm('Vuoi ripristinare gli ID ufficiali Google Drive del sistema (da dati-configurazione)?')) {
+        const defaults = getCanonicalDefaults();
         populateForm(defaults);
-        saveCompanyConfig(defaults);
-        toast('Valori predefiniti ripristinati');
+        await saveCompanyConfig(defaults);
+        toast('Valori e ID ufficiali ripristinati');
         checkDiagnostics();
       }
     };
 
     // Page initialization:
-    // 1. Immediately populate from local cache/defaults so UI is never blank
+    // 1. Immediately populate from canonical defaults / local cache
     // 2. Asynchronously fetch the authoritative central cloud config from server
     (async () => {
-      const initial = window.companyConfig || getStoredConfig() || defaultConfig;
+      const canonical = getCanonicalDefaults();
+      const initial = window.companyConfig || getStoredConfig() || canonical;
       populateForm(initial);
 
       try {

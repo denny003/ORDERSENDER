@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Piano Marketing & Giro Visite — Offerte Agenti</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .crm-shell { max-width: 1140px; margin: 0 auto; padding: 24px 18px 60px; }
+    .crm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 14px; }
+    .crm-title h1 { font-size: 1.65rem; margin: 0 0 4px; color: var(--navy); }
+    .crm-title p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+    /* Top Stats */
+    .crm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 22px; }
+    .crm-stat-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+    .crm-stat-card small { display: block; font-size: .75rem; text-transform: uppercase; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+    .crm-stat-card .val { font-size: 1.5rem; font-weight: 800; color: var(--navy); }
+
+    /* Section Switcher Tabs */
+    .view-switch { display: flex; gap: 10px; margin-bottom: 20px; background: #e2e8f0; padding: 5px; border-radius: 12px; width: fit-content; }
+    .switch-btn { border: 0; background: transparent; padding: 9px 18px; border-radius: 9px; font-weight: 750; font-size: .9rem; color: #475569; cursor: pointer; transition: all .15s; }
+    .switch-btn.active { background: #fff; color: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+
+    /* Visit Cards */
+    .visits-list { display: flex; flex-direction: column; gap: 12px; }
+    .visit-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); transition: all .15s; }
+    .visit-card:hover { border-color: #94bcd8; }
+    .visit-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .visit-client { font-size: 1.1rem; font-weight: 800; color: var(--navy); }
+    .visit-meta { display: flex; gap: 14px; font-size: .84rem; color: #475569; flex-wrap: wrap; margin-bottom: 12px; }
+    .visit-meta a { color: var(--blue); text-decoration: none; font-weight: 600; }
+    .visit-meta a:hover { text-decoration: underline; }
+
+    /* Status Badges */
+    .v-badge { padding: 4px 10px; border-radius: 20px; font-size: .78rem; font-weight: 750; }
+    .v-programmata { background: #e0f2fe; color: #0369a1; }
+    .v-effettuata { background: #dcfce7; color: #15803d; }
+    .v-followup { background: #fef3c7; color: #92400e; }
+    .v-rinviata { background: #f1f5f9; color: #64748b; }
+
+    .visit-notes { background: #f8fafc; border-left: 3px solid var(--blue); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: .86rem; color: #334155; margin-bottom: 14px; }
+    .visit-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+
+    /* Prospects Grid */
+    .prospects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .prospect-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+    .prospect-name { font-size: 1.05rem; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+    .prospect-person { font-size: .86rem; color: #475569; margin-bottom: 8px; }
+    .prospect-interest { background: #f0fdf4; color: #166534; font-size: .78rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; display: inline-block; margin-bottom: 10px; }
+
+    .btn-green { background: #16835b; color: #fff; }
+    .btn-green:hover { background: #126e4c; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">OA</span>
+      <div>
+        <strong>Offerte Agenti</strong>
+        <small>Piano Marketing & Giro Visite</small>
+      </div>
+    </div>
+    <div class="heading-actions">
+      <a class="btn secondary" href="/">← Torna alle pratiche</a>
+      <a class="btn primary" href="/offerta?new=1">Nuova offerta</a>
+    </div>
+  </header>
+
+  <main class="crm-shell">
+    <div class="crm-header">
+      <div class="crm-title">
+        <h1>Giro Visite & Gestione Contatti</h1>
+        <p>Organizza il tuo percorso settimanale, registra gli incontri sul territorio e segui i prospect</p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnNewVisit" class="btn primary">📅 Pianifica Visita</button>
+        <button type="button" id="btnNewProspect" class="btn secondary">👤 Nuovo Contatto</button>
+      </div>
+    </div>
+
+    <!-- KPI STATS -->
+    <div class="crm-stats">
+      <div class="crm-stat-card">
+        <small>📅 Visite Totali</small>
+        <div class="val" id="statTotalVisits">0</div>
+      </div>
+      <div class="crm-stat-card">
+        <small>⏳ Da effettuare</small>
+        <div class="val" id="statPlannedVisits">0</div>
+      </div>
+      <div class="crm-stat-card">
+        <small>✅ Effettuate</small>
+        <div class="val" id="statDoneVisits">0</div>
+      </div>
+      <div class="crm-stat-card">
+        <small>🔄 Follow-up da richiamare</small>
+        <div class="val" id="statFollowupVisits">0</div>
+      </div>
+      <div class="crm-stat-card">
+        <small>👥 Nuovi Prospect</small>
+        <div class="val" id="statProspects">0</div>
+      </div>
+    </div>
+
+    <!-- SECTION SWITCHER -->
+    <div class="view-switch">
+      <button type="button" class="switch-btn active" id="tabVisits">📅 Agenda Visite</button>
+      <button type="button" class="switch-btn" id="tabProspects">👥 Rubrica Contatti & Lead</button>
+    </div>
+
+    <!-- VIEW 1: AGENDA GIRO VISITE -->
+    <section id="sectionVisits">
+      <div style="display:flex; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <input type="text" id="searchVisits" class="field" style="max-width:320px; padding:10px 14px; border:1px solid #cfdbe1; border-radius:8px;" placeholder="🔍 Cerca cliente, comune o via…">
+        <select id="filterVisitStatus" style="padding:10px 14px; border:1px solid #cfdbe1; border-radius:8px; background:#fff;">
+          <option value="all">Tutti gli stati</option>
+          <option value="Programmata">📅 Programmate</option>
+          <option value="Effettuata">✅ Effettuate</option>
+          <option value="Da ricontattare">🔄 Da ricontattare (Follow-up)</option>
+          <option value="Rinviata">❌ Rinviate / Non trovato</option>
+        </select>
+      </div>
+
+      <div id="visitsContainer" class="visits-list">
+        <div style="text-align:center; padding:30px; color:var(--muted);">Caricamento visite…</div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: CONTATTI PROSPECT -->
+    <section id="sectionProspects" class="hidden">
+      <div style="display:flex; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <input type="text" id="searchProspects" class="field" style="max-width:320px; padding:10px 14px; border:1px solid #cfdbe1; border-radius:8px;" placeholder="🔍 Cerca prospect, referente o città…">
+      </div>
+      <div id="prospectsContainer" class="prospects-grid">
+        <div style="text-align:center; padding:30px; color:var(--muted); grid-column:1/-1;">Caricamento contatti prospect…</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: PIANIFICA VISITA -->
+  <dialog id="modalVisit">
+    <form id="formVisit" method="dialog" style="padding:22px;">
+      <div class="dialog-head">
+        <div>
+          <h2>Pianifica Visita Cliente</h2>
+          <p>Inserisci i dettagli dell'appuntamento o del passaggio</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('modalVisit').close()">✕</button>
+      </div>
+
+      <input type="hidden" id="vId">
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Cliente o Prospect</span>
+        <input type="text" id="vClientName" required placeholder="Es. Centro Estetico Sole & Bellezza">
+      </div>
+
+      <div class="two-cols" style="margin-bottom:12px;">
+        <div class="field">
+          <span>Data Incontro</span>
+          <input type="date" id="vDate" required>
+        </div>
+        <div class="field">
+          <span>Orario previsto</span>
+          <input type="time" id="vTime" value="10:00">
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Indirizzo e Comune (per navigatore GPS)</span>
+        <input type="text" id="vAddress" placeholder="Es. Via Roma 12, Firenze">
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Telefono di contatto</span>
+        <input type="tel" id="vPhone" placeholder="Es. 333 1234567">
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Stato Visita</span>
+        <select id="vStatus">
+          <option value="Programmata">📅 Programmata</option>
+          <option value="Effettuata">✅ Effettuata</option>
+          <option value="Da ricontattare">🔄 Da ricontattare</option>
+          <option value="Rinviata">❌ Rinviata</option>
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Esito / Note della Visita</span>
+        <textarea id="vNotes" rows="2" placeholder="Es. Mostrata novità sieri viso, interessata ad ordine da 500€..."></textarea>
+      </div>
+
+      <div class="field" style="margin-bottom:16px;">
+        <span>Data di Richiamo / Follow-up</span>
+        <input type="date" id="vFollowUp">
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" onclick="$('modalVisit').close()">Annulla</button>
+        <button type="submit" class="btn primary">💾 Salva nel Giro Visite</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL: NUOVO PROSPECT -->
+  <dialog id="modalProspect">
+    <form id="formProspect" method="dialog" style="padding:22px;">
+      <div class="dialog-head">
+        <div>
+          <h2>Nuovo Contatto / Prospect</h2>
+          <p>Censisci un potenziale cliente incontrato sul territorio</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('modalProspect').close()">✕</button>
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Ragione Sociale / Nome Attività</span>
+        <input type="text" id="pCompany" required placeholder="Es. Estetica Armonia">
+      </div>
+
+      <div class="two-cols" style="margin-bottom:12px;">
+        <div class="field">
+          <span>Referente / Titolare</span>
+          <input type="text" id="pPerson" placeholder="Es. Dott.ssa Laura Verdi">
+        </div>
+        <div class="field">
+          <span>Settore di Interesse</span>
+          <input type="text" id="pInterest" placeholder="Es. Trattamento Viso, Solari">
+        </div>
+      </div>
+
+      <div class="two-cols" style="margin-bottom:12px;">
+        <div class="field">
+          <span>Telefono</span>
+          <input type="tel" id="pPhone" placeholder="Es. 055 897654">
+        </div>
+        <div class="field">
+          <span>Email</span>
+          <input type="email" id="pEmail" placeholder="info@esempio.it">
+        </div>
+      </div>
+
+      <div class="two-cols" style="margin-bottom:12px;">
+        <div class="field">
+          <span>Indirizzo</span>
+          <input type="text" id="pAddress" placeholder="Es. Corso Garibaldi 45">
+        </div>
+        <div class="field">
+          <span>Città / Provincia</span>
+          <input type="text" id="pCity" placeholder="Es. Pisa (PI)">
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:16px;">
+        <span>Note di Presentazione</span>
+        <textarea id="pNotes" rows="2" placeholder="Es. Conosciuto ad evento beauty, molto ricettiva..."></textarea>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" onclick="$('modalProspect').close()">Annulla</button>
+        <button type="submit" class="btn primary btn-green">👤 Registra Prospect</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/config/companyConfig.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const toast = msg => {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2600);
+    };
+
+    let visits = [];
+    let prospects = [];
+
+    // Switch between Agenda Visite and Rubrica Prospect
+    $('tabVisits').onclick = () => {
+      $('tabVisits').classList.add('active');
+      $('tabProspects').classList.remove('active');
+      $('sectionVisits').classList.remove('hidden');
+      $('sectionProspects').classList.add('hidden');
+    };
+
+    $('tabProspects').onclick = () => {
+      $('tabProspects').classList.add('active');
+      $('tabVisits').classList.remove('active');
+      $('sectionProspects').classList.remove('hidden');
+      $('sectionVisits').classList.add('hidden');
+    };
+
+    async function loadData() {
+      try {
+        const [vRes, pRes] = await Promise.all([
+          fetch('/api/visits'),
+          fetch('/api/prospects')
+        ]);
+        if (vRes.ok) {
+          const d = await vRes.json();
+          visits = d.visits || [];
+        }
+        if (pRes.ok) {
+          const d = await pRes.json();
+          prospects = d.prospects || [];
+        }
+        updateKpis();
+        renderVisits();
+        renderProspects();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function updateKpis() {
+      $('statTotalVisits').textContent = visits.length;
+      $('statPlannedVisits').textContent = visits.filter(v => v.status === 'Programmata').length;
+      $('statDoneVisits').textContent = visits.filter(v => v.status === 'Effettuata').length;
+      $('statFollowupVisits').textContent = visits.filter(v => v.status === 'Da ricontattare' || v.followUpDate).length;
+      $('statProspects').textContent = prospects.length;
+    }
+
+    function renderVisits() {
+      const term = $('searchVisits').value.trim().toLowerCase();
+      const stFilter = $('filterVisitStatus').value;
+
+      const filtered = visits.filter(v => {
+        if (stFilter !== 'all' && v.status !== stFilter) return false;
+        if (!term) return true;
+        const haystack = `${v.clientName} ${v.address} ${v.notes}`.toLowerCase();
+        return haystack.includes(term);
+      }).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+      if (!filtered.length) {
+        $('visitsContainer').innerHTML = `
+          <div style="text-align:center; padding:36px; background:#fff; border-radius:12px; border:1px solid var(--line); color:var(--muted);">
+            Nessuna visita trovata con i filtri selezionati.
+          </div>
+        `;
+        return;
+      }
+
+      const badgeClass = st => {
+        if (st === 'Effettuata') return 'v-effettuata';
+        if (st === 'Da ricontattare') return 'v-followup';
+        if (st === 'Rinviata') return 'v-rinviata';
+        return 'v-programmata';
+      };
+
+      $('visitsContainer').innerHTML = filtered.map(v => `
+        <div class="visit-card">
+          <div class="visit-head">
+            <div>
+              <div class="visit-client">${v.clientName}</div>
+              <div class="visit-meta">
+                <span>📅 <strong>${v.date || 'Data da definire'}</strong> ${v.time ? `alle ${v.time}` : ''}</span>
+                ${v.address ? `<span>📍 <a href="https://maps.google.com/?q=${encodeURIComponent(v.address)}" target="_blank">${v.address} ↗</a></span>` : ''}
+                ${v.phone ? `<span>📞 <a href="tel:${v.phone}">${v.phone}</a></span>` : ''}
+              </div>
+            </div>
+            <span class="v-badge ${badgeClass(v.status)}">${v.status || 'Programmata'}</span>
+          </div>
+
+          ${v.notes ? `<div class="visit-notes"><strong>Note:</strong> ${v.notes} ${v.followUpDate ? `— <em>Richiamo: ${v.followUpDate}</em>` : ''}</div>` : ''}
+
+          <div class="visit-actions">
+            <button type="button" class="btn secondary" style="padding:6px 12px; font-size:.82rem;" onclick="editVisit('${v.id}')">📝 Registra Esito</button>
+            <a href="/offerta?new=1&client=${encodeURIComponent(v.clientName)}" class="btn primary" style="padding:6px 12px; font-size:.82rem; text-decoration:none;">💼 Crea Offerta</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderProspects() {
+      const term = $('searchProspects').value.trim().toLowerCase();
+      const filtered = prospects.filter(p => {
+        if (!term) return true;
+        const haystack = `${p.companyName} ${p.contactPerson} ${p.city} ${p.interest}`.toLowerCase();
+        return haystack.includes(term);
+      });
+
+      if (!filtered.length) {
+        $('prospectsContainer').innerHTML = `
+          <div style="text-align:center; padding:36px; background:#fff; border-radius:12px; border:1px solid var(--line); color:var(--muted); grid-column:1/-1;">
+            Nessun contatto prospect registrato. Aggiungine uno con il pulsante "Nuovo Contatto"!
+          </div>
+        `;
+        return;
+      }
+
+      $('prospectsContainer').innerHTML = filtered.map(p => `
+        <div class="prospect-card">
+          <div class="prospect-name">${p.companyName}</div>
+          ${p.contactPerson ? `<div class="prospect-person">👤 Referente: ${p.contactPerson}</div>` : ''}
+          ${p.interest ? `<div class="prospect-interest">🎯 ${p.interest}</div>` : ''}
+          <div style="font-size:.84rem; color:#475569; margin-bottom:12px;">
+            ${p.city ? `<div>📍 ${p.city} ${p.address ? `(${p.address})` : ''}</div>` : ''}
+            ${p.phone ? `<div>📞 <a href="tel:${p.phone}" style="color:var(--blue);">${p.phone}</a></div>` : ''}
+            ${p.email ? `<div>✉️ ${p.email}</div>` : ''}
+          </div>
+          ${p.notes ? `<div style="font-size:.82rem; color:var(--muted); margin-bottom:12px;"><em>${p.notes}</em></div>` : ''}
+          <div style="display:flex; gap:6px; border-top:1px solid #f1f5f9; padding-top:10px;">
+            <button type="button" class="btn secondary" style="padding:6px 10px; font-size:.8rem; flex:1;" onclick="scheduleVisitForProspect('${encodeURIComponent(p.companyName)}', '${encodeURIComponent(p.address || p.city || '')}', '${encodeURIComponent(p.phone || '')}')">📅 Visita</button>
+            <a href="/offerta?new=1&client=${encodeURIComponent(p.companyName)}" class="btn primary" style="padding:6px 10px; font-size:.8rem; flex:1; text-align:center; text-decoration:none;">💼 Offerta</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    $('searchVisits').oninput = renderVisits;
+    $('filterVisitStatus').onchange = renderVisits;
+    $('searchProspects').oninput = renderProspects;
+
+    // Open Modals
+    $('btnNewVisit').onclick = () => {
+      $('formVisit').reset();
+      $('vId').value = '';
+      $('vDate').value = new Date().toISOString().slice(0, 10);
+      $('modalVisit').showModal();
+    };
+
+    $('btnNewProspect').onclick = () => {
+      $('formProspect').reset();
+      $('modalProspect').showModal();
+    };
+
+    function editVisit(id) {
+      const v = visits.find(x => x.id === id);
+      if (!v) return;
+      $('vId').value = v.id;
+      $('vClientName').value = v.clientName || '';
+      $('vDate').value = v.date || '';
+      $('vTime').value = v.time || '10:00';
+      $('vAddress').value = v.address || '';
+      $('vPhone').value = v.phone || '';
+      $('vStatus').value = v.status || 'Programmata';
+      $('vNotes').value = v.notes || '';
+      $('vFollowUp').value = v.followUpDate || '';
+      $('modalVisit').showModal();
+    }
+
+    function scheduleVisitForProspect(name, addr, phone) {
+      $('formVisit').reset();
+      $('vId').value = '';
+      $('vClientName').value = decodeURIComponent(name);
+      $('vAddress').value = decodeURIComponent(addr);
+      $('vPhone').value = decodeURIComponent(phone);
+      $('vDate').value = new Date().toISOString().slice(0, 10);
+      $('modalVisit').showModal();
+    }
+
+    // Save Visit
+    $('formVisit').onsubmit = async e => {
+      e.preventDefault();
+      const payload = {
+        id: $('vId').value || undefined,
+        clientName: $('vClientName').value.trim(),
+        date: $('vDate').value,
+        time: $('vTime').value,
+        address: $('vAddress').value.trim(),
+        phone: $('vPhone').value.trim(),
+        status: $('vStatus').value,
+        notes: $('vNotes').value.trim(),
+        followUpDate: $('vFollowUp').value
+      };
+
+      try {
+        const res = await fetch('/api/visits', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Errore salvataggio');
+        toast('Visita salvata con successo!');
+        $('modalVisit').close();
+        await loadData();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+
+    // Save Prospect
+    $('formProspect').onsubmit = async e => {
+      e.preventDefault();
+      const payload = {
+        companyName: $('pCompany').value.trim(),
+        contactPerson: $('pPerson').value.trim(),
+        interest: $('pInterest').value.trim(),
+        phone: $('pPhone').value.trim(),
+        email: $('pEmail').value.trim(),
+        address: $('pAddress').value.trim(),
+        city: $('pCity').value.trim(),
+        notes: $('pNotes').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/prospects', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Errore salvataggio prospect');
+        toast('Prospect registrato con successo!');
+        $('modalProspect').close();
+        await loadData();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+
+    loadData();
+  </script>
+</body>
+</html>

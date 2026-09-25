@@ -123,7 +123,21 @@ async function loadData() {
       if (window.companyConfigPromise) {
         try { await window.companyConfigPromise; } catch {}
       }
-      const cfg = window.companyConfig || {};
+      const def = window.OFFICIAL_SYSTEM_SPREADSHEETS || {
+        company: { spreadsheetId: "1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M", tab: "Dati azienda" },
+        agents: { spreadsheetId: "13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU", tab: "Agenti" },
+        customers: { spreadsheetId: "1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8", tab: "clienti" },
+        products: { spreadsheetId: "17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE", tab: "q_listino_prezzi_catalogo" },
+        repository: { spreadsheetId: "1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc", tabOffers: "Offerte", tabOrders: "Ordini" }
+      };
+      const cfg = window.companyConfig || def;
+      const getValidId = (id, fallback) => (!id || typeof id !== 'string' || id.length < 20 || id.includes('1mnW') || id.includes('1N6ZcGa')) ? fallback : id.trim();
+
+      const compId = getValidId(cfg.company?.spreadsheetId, def.company.spreadsheetId);
+      const agId = getValidId(cfg.agents?.spreadsheetId, def.agents.spreadsheetId);
+      const custId = getValidId(cfg.customers?.spreadsheetId, def.customers.spreadsheetId);
+      const prodId = getValidId(cfg.products?.spreadsheetId, def.products.spreadsheetId);
+
       const qs = (id, tab) => {
         const params = new URLSearchParams();
         if (id) params.set('id', id);
@@ -133,10 +147,10 @@ async function loadData() {
       };
 
       const [compRes, agRes, custRes, prodRes] = await Promise.all([
-        fetch(`/api/company${qs(cfg.company?.spreadsheetId, cfg.company?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
-        fetch(`/api/agents${qs(cfg.agents?.spreadsheetId, cfg.agents?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
-        fetch(`/api/customers${qs(cfg.customers?.spreadsheetId, cfg.customers?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
-        fetch(`/api/products${qs(cfg.products?.spreadsheetId, cfg.products?.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' })
+        fetch(`/api/company${qs(compId, cfg.company?.tab || def.company.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`/api/agents${qs(agId, cfg.agents?.tab || def.agents.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`/api/customers${qs(custId, cfg.customers?.tab || def.customers.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' }),
+        fetch(`/api/products${qs(prodId, cfg.products?.tab || def.products.tab)}`, { headers: { accept: 'application/json' }, cache: 'no-store' })
       ]);
 
       if (compRes.ok) {
@@ -500,7 +514,8 @@ function exportExcel() {
 
 function submissionPayload() {
   const c = customerData(), t = totals(), agent = currentAgent(), number = offerNumber();
-  const repoId = window.companyConfig?.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+  const rawRepo = window.companyConfig?.repository?.spreadsheetId;
+  const repoId = (rawRepo && rawRepo.length >= 20 && !rawRepo.includes('1mnW')) ? rawRepo : '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
   const base = {
     id: localStorage.getItem(`submission-${number}`) || crypto.randomUUID(),
     spreadsheetId: repoId,
@@ -830,6 +845,14 @@ async function start() {
     roleOptions();
     updateFilters();
     restoreOffer();
+    if (params.get('client')) {
+      const qClient = decodeURIComponent(params.get('client')).trim().toLowerCase();
+      const match = visibleClients().find(c => (c.name || '').toLowerCase().includes(qClient));
+      if (match) {
+        $('customerSelect').value = String(match.id);
+        showCustomer();
+      }
+    }
     updateRoleView();
     renderOffer();
     renderCatalog();

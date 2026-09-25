@@ -72,46 +72,84 @@ function normalizeAgentId(code) {
   return str;
 }
 
-const cleanEnvId = (val, oldPatterns = ['1mnW', '1N6ZcGa']) => {
-  if (!val) return '';
-  for (const p of oldPatterns) {
-    if (val.includes(p)) return '';
-  }
-  return val;
-};
-
-// In-memory runtime configuration with sensible defaults
-let runtimeConfig = {
+// Official permanent spreadsheet IDs from GOOGLE-DRIVE/dati-configurazione
+// Nessun agente dovrà mai inserire gli ID a mano: il sistema usa queste variabili fisse!
+const OFFICIAL_SYSTEM_SPREADSHEETS = Object.freeze({
   company: {
     sheetName: 'Dati_Azienda_e_Mandanti',
-    spreadsheetId: cleanEnvId(process.env.COMPANY_SPREADSHEET_ID) || '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M',
+    spreadsheetId: '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M',
     tab: 'Dati azienda'
   },
   agents: {
     fileName: 'Anagrafica_Agenti',
-    spreadsheetId: cleanEnvId(process.env.AGENTS_SPREADSHEET_ID) || '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU',
+    spreadsheetId: '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU',
     tab: 'Agenti'
   },
   customers: {
     fileName: 'clienti',
-    spreadsheetId: cleanEnvId(process.env.CUSTOMERS_SPREADSHEET_ID) || '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8',
+    spreadsheetId: '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8',
     tab: 'clienti'
   },
   products: {
     fileName: 'Articoli',
-    spreadsheetId: cleanEnvId(process.env.PRODUCTS_SPREADSHEET_ID) || '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE',
+    spreadsheetId: '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE',
     tab: 'q_listino_prezzi_catalogo'
   },
   repository: {
     folder: 'Repository',
     fileName: 'Registro offerte e ordini',
-    spreadsheetId: cleanEnvId(process.env.REGISTER_SPREADSHEET_ID) || cleanEnvId(process.env.REPOSITORY_SPREADSHEET_ID) || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc',
+    spreadsheetId: '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc',
     tabOffers: 'Offerte',
     tabOrders: 'Ordini'
   },
   googleDrive: {
     sourceFolderUrl: 'https://drive.google.com/drive/folders/1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9',
     folderId: '1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9'
+  }
+});
+
+const cleanEnvId = (val, fallback = '', oldPatterns = ['1mnW', '1N6ZcGa', 'undefined', 'null']) => {
+  if (!val || typeof val !== 'string') return fallback;
+  const trimmed = val.trim();
+  if (trimmed.length < 20) return fallback;
+  for (const p of oldPatterns) {
+    if (trimmed.includes(p)) return fallback;
+  }
+  return trimmed;
+};
+
+// In-memory runtime configuration with permanent default fallback
+let runtimeConfig = {
+  company: {
+    sheetName: 'Dati_Azienda_e_Mandanti',
+    spreadsheetId: cleanEnvId(process.env.COMPANY_SPREADSHEET_ID, OFFICIAL_SYSTEM_SPREADSHEETS.company.spreadsheetId),
+    tab: 'Dati azienda'
+  },
+  agents: {
+    fileName: 'Anagrafica_Agenti',
+    spreadsheetId: cleanEnvId(process.env.AGENTS_SPREADSHEET_ID, OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId),
+    tab: 'Agenti'
+  },
+  customers: {
+    fileName: 'clienti',
+    spreadsheetId: cleanEnvId(process.env.CUSTOMERS_SPREADSHEET_ID, OFFICIAL_SYSTEM_SPREADSHEETS.customers.spreadsheetId),
+    tab: 'clienti'
+  },
+  products: {
+    fileName: 'Articoli',
+    spreadsheetId: cleanEnvId(process.env.PRODUCTS_SPREADSHEET_ID, OFFICIAL_SYSTEM_SPREADSHEETS.products.spreadsheetId),
+    tab: 'q_listino_prezzi_catalogo'
+  },
+  repository: {
+    folder: 'Repository',
+    fileName: 'Registro offerte e ordini',
+    spreadsheetId: cleanEnvId(process.env.REGISTER_SPREADSHEET_ID) || cleanEnvId(process.env.REPOSITORY_SPREADSHEET_ID) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId,
+    tabOffers: 'Offerte',
+    tabOrders: 'Ordini'
+  },
+  googleDrive: {
+    sourceFolderUrl: OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive.sourceFolderUrl,
+    folderId: OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive.folderId
   }
 };
 
@@ -195,12 +233,59 @@ let lastCentralConfigFetch = 0;
 
 function mergeRuntimeConfig(custom) {
   if (!custom || typeof custom !== 'object') return;
-  if (custom.company) runtimeConfig.company = { ...runtimeConfig.company, ...custom.company };
-  if (custom.agents) runtimeConfig.agents = { ...runtimeConfig.agents, ...custom.agents };
-  if (custom.customers) runtimeConfig.customers = { ...runtimeConfig.customers, ...custom.customers };
-  if (custom.products) runtimeConfig.products = { ...runtimeConfig.products, ...custom.products };
-  if (custom.repository) runtimeConfig.repository = { ...runtimeConfig.repository, ...custom.repository };
-  if (custom.googleDrive) runtimeConfig.googleDrive = { ...runtimeConfig.googleDrive, ...custom.googleDrive };
+  if (custom.company) {
+    runtimeConfig.company = {
+      ...runtimeConfig.company,
+      ...custom.company,
+      sheetName: custom.company.sheetName || runtimeConfig.company.sheetName || OFFICIAL_SYSTEM_SPREADSHEETS.company.sheetName,
+      spreadsheetId: cleanEnvId(custom.company.spreadsheetId, runtimeConfig.company.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.company.spreadsheetId),
+      tab: custom.company.tab || runtimeConfig.company.tab || OFFICIAL_SYSTEM_SPREADSHEETS.company.tab
+    };
+  }
+  if (custom.agents) {
+    runtimeConfig.agents = {
+      ...runtimeConfig.agents,
+      ...custom.agents,
+      fileName: custom.agents.fileName || runtimeConfig.agents.fileName || OFFICIAL_SYSTEM_SPREADSHEETS.agents.fileName,
+      spreadsheetId: cleanEnvId(custom.agents.spreadsheetId, runtimeConfig.agents.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId),
+      tab: custom.agents.tab || runtimeConfig.agents.tab || OFFICIAL_SYSTEM_SPREADSHEETS.agents.tab
+    };
+  }
+  if (custom.customers) {
+    runtimeConfig.customers = {
+      ...runtimeConfig.customers,
+      ...custom.customers,
+      fileName: custom.customers.fileName || runtimeConfig.customers.fileName || OFFICIAL_SYSTEM_SPREADSHEETS.customers.fileName,
+      spreadsheetId: cleanEnvId(custom.customers.spreadsheetId, runtimeConfig.customers.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.customers.spreadsheetId),
+      tab: custom.customers.tab || runtimeConfig.customers.tab || OFFICIAL_SYSTEM_SPREADSHEETS.customers.tab
+    };
+  }
+  if (custom.products) {
+    runtimeConfig.products = {
+      ...runtimeConfig.products,
+      ...custom.products,
+      fileName: custom.products.fileName || runtimeConfig.products.fileName || OFFICIAL_SYSTEM_SPREADSHEETS.products.fileName,
+      spreadsheetId: cleanEnvId(custom.products.spreadsheetId, runtimeConfig.products.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.products.spreadsheetId),
+      tab: custom.products.tab || runtimeConfig.products.tab || OFFICIAL_SYSTEM_SPREADSHEETS.products.tab
+    };
+  }
+  if (custom.repository) {
+    runtimeConfig.repository = {
+      ...runtimeConfig.repository,
+      ...custom.repository,
+      folder: custom.repository.folder || runtimeConfig.repository.folder || OFFICIAL_SYSTEM_SPREADSHEETS.repository.folder,
+      fileName: custom.repository.fileName || runtimeConfig.repository.fileName || OFFICIAL_SYSTEM_SPREADSHEETS.repository.fileName,
+      spreadsheetId: cleanEnvId(custom.repository.spreadsheetId, runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId),
+      tabOffers: custom.repository.tabOffers || runtimeConfig.repository.tabOffers || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOffers,
+      tabOrders: custom.repository.tabOrders || runtimeConfig.repository.tabOrders || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOrders
+    };
+  }
+  if (custom.googleDrive) {
+    runtimeConfig.googleDrive = {
+      sourceFolderUrl: custom.googleDrive.sourceFolderUrl || OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive.sourceFolderUrl,
+      folderId: custom.googleDrive.folderId || OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive.folderId
+    };
+  }
   if (custom.lastUpdate) runtimeConfig.lastUpdate = custom.lastUpdate;
   if (custom.updatedBy) runtimeConfig.updatedBy = custom.updatedBy;
 }
@@ -237,7 +322,7 @@ async function loadCentralConfig(force = false) {
   if (centralConfigLoaded && !force && (Date.now() - lastCentralConfigFetch < 30000)) {
     return runtimeConfig;
   }
-  const regId = runtimeConfig.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+  const regId = cleanEnvId(runtimeConfig.repository?.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
   try {
     const rows = await readRange(regId, "'_Configurazione'!A1:E30");
     if (rows && rows.length > 0) {
@@ -298,7 +383,7 @@ async function saveCentralConfig(cfg, user) {
   runtimeConfig.updatedBy = userName;
   runtimeConfig.source = 'Configurazione centrale Google Drive';
 
-  const regId = runtimeConfig.repository?.spreadsheetId || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+  const regId = cleanEnvId(runtimeConfig.repository?.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
 
   const rows = [
     ['CHIAVE_CONFIGURAZIONE', 'VALORE', 'DESCRIZIONE', 'ULTIMO_AGGIORNAMENTO', 'UTENTE'],
@@ -392,8 +477,8 @@ async function loadSeed() {
 
 // 1. Fetch Company
 async function fetchCompanyData(customId, customTab) {
-  const id = customId || runtimeConfig.company.spreadsheetId;
-  const tab = customTab || runtimeConfig.company.tab || 'Dati azienda';
+  const id = cleanEnvId(customId) || runtimeConfig.company.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.company.spreadsheetId;
+  const tab = customTab || runtimeConfig.company.tab || OFFICIAL_SYSTEM_SPREADSHEETS.company.tab || 'Dati azienda';
   try {
     const rows = await readRange(id, `'${tab}'!A1:D45`);
     const out = {};
@@ -414,8 +499,8 @@ async function fetchCompanyData(customId, customTab) {
 
 // 2. Fetch Agents
 async function fetchAgentsData(customId, customTab) {
-  const id = customId || runtimeConfig.agents.spreadsheetId;
-  const tab = customTab || runtimeConfig.agents.tab || 'Agenti';
+  const id = cleanEnvId(customId) || runtimeConfig.agents.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId;
+  const tab = customTab || runtimeConfig.agents.tab || OFFICIAL_SYSTEM_SPREADSHEETS.agents.tab || 'Agenti';
   try {
     const rows = await readRange(id, `'${tab}'!A1:R100`);
     let headerIdx = -1;
@@ -512,8 +597,8 @@ async function fetchAgentsData(customId, customTab) {
 
 // 3. Fetch Customers
 async function fetchCustomersData(customId, customTab, user = null) {
-  const id = customId || runtimeConfig.customers.spreadsheetId;
-  const tab = customTab || runtimeConfig.customers.tab || 'clienti';
+  const id = cleanEnvId(customId) || runtimeConfig.customers.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.customers.spreadsheetId;
+  const tab = customTab || runtimeConfig.customers.tab || OFFICIAL_SYSTEM_SPREADSHEETS.customers.tab || 'clienti';
   try {
     const rows = await readRange(id, `'${tab}'!A1:P500`);
     if (rows.length > 1) {
@@ -580,8 +665,8 @@ async function fetchCustomersData(customId, customTab, user = null) {
 
 // 4. Fetch Products
 async function fetchProductsData(customId, customTab) {
-  const id = customId || runtimeConfig.products.spreadsheetId;
-  const tab = customTab || runtimeConfig.products.tab || 'q_listino_prezzi_catalogo';
+  const id = cleanEnvId(customId) || runtimeConfig.products.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.products.spreadsheetId;
+  const tab = customTab || runtimeConfig.products.tab || OFFICIAL_SYSTEM_SPREADSHEETS.products.tab || 'q_listino_prezzi_catalogo';
   try {
     const rows = await readRange(id, `'${tab}'!A1:AN500`);
     if (rows.length > 1) {
@@ -939,7 +1024,7 @@ function cleanCell(val) {
 }
 
 async function ensureHeader(tab, headers, customRegId) {
-  const regId = customRegId || runtimeConfig.repository.spreadsheetId;
+  const regId = cleanEnvId(customRegId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
   const current = await readRange(regId, `'${tab}'!A1:Z5`);
   if (!current.length || !current.some(r => r && r.length > 0)) {
     await append(regId, `'${tab}'!A1`, [headers]);
@@ -947,7 +1032,7 @@ async function ensureHeader(tab, headers, customRegId) {
 }
 
 async function listDocs(tab, user, customId) {
-  const regId = customId || runtimeConfig.repository.spreadsheetId;
+  const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
   try {
     const rawRows = await readRange(regId, `'${tab}'!A1:Z1000`);
     if (!rawRows || !rawRows.length) return [];
@@ -998,6 +1083,15 @@ async function listDocs(tab, user, customId) {
     const notesIdx = findCol(['nota azienda', 'note operative', 'note', 'payload_json']);
     const origOfferIdx = findCol(['id offerta origine', 'offerta origine']);
 
+    const ddtNumIdx = findCol(['numero bolla / ddt', 'numero bolla', 'numero ddt', 'ddt']);
+    const ddtDateIdx = findCol(['data bolla', 'data ddt']);
+    const carrierIdx = findCol(['corriere', 'vettore']);
+    const trackNumIdx = findCol(['numero tracking', 'tracking']);
+    const trackLinkIdx = findCol(['link tracking']);
+    const shipDateIdx = findCol(['data spedizione']);
+    const estDeliveryIdx = findCol(['consegna prevista']);
+    const delivDateIdx = findCol(['data consegna']);
+
     // Allowed agents for user role
     const userRole = user?.role || 'agent';
     const userAgentCode = normalizeAgentId(user?.agentCode || '');
@@ -1039,6 +1133,15 @@ async function listDocs(tab, user, customId) {
       const notes = notesIdx >= 0 && r[notesIdx] != null ? cleanCell(r[notesIdx]) : '';
       const originOffer = origOfferIdx >= 0 && r[origOfferIdx] != null ? cleanCell(r[origOfferIdx]) : '';
 
+      const ddtNum = ddtNumIdx >= 0 && r[ddtNumIdx] != null ? cleanCell(r[ddtNumIdx]) : '';
+      const ddtDate = ddtDateIdx >= 0 && r[ddtDateIdx] != null ? cleanCell(r[ddtDateIdx]) : '';
+      const carrier = carrierIdx >= 0 && r[carrierIdx] != null ? cleanCell(r[carrierIdx]) : '';
+      const trackNum = trackNumIdx >= 0 && r[trackNumIdx] != null ? cleanCell(r[trackNumIdx]) : '';
+      const trackLink = trackLinkIdx >= 0 && r[trackLinkIdx] != null ? cleanCell(r[trackLinkIdx]) : '';
+      const shipDate = shipDateIdx >= 0 && r[shipDateIdx] != null ? cleanCell(r[shipDateIdx]) : '';
+      const estDelivery = estDeliveryIdx >= 0 && r[estDeliveryIdx] != null ? cleanCell(r[estDeliveryIdx]) : '';
+      const delivDate = delivDateIdx >= 0 && r[delivDateIdx] != null ? cleanCell(r[delivDateIdx]) : '';
+
       docs.push({
         id: id || num,
         number: num,
@@ -1060,7 +1163,16 @@ async function listDocs(tab, user, customId) {
         outcome,
         version,
         notes,
-        origin_offer_id: originOffer
+        origin_offer_id: originOffer,
+        ddt_number: ddtNum,
+        ddt_date: ddtDate,
+        carrier,
+        tracking_number: trackNum,
+        tracking_link: trackLink,
+        shipping_date: shipDate,
+        estimated_delivery: estDelivery,
+        delivered_date: delivDate,
+        workflow_status: normalizeWorkflowStatus(outcome || rawStatus || status)
       });
     }
 
@@ -1072,7 +1184,7 @@ async function listDocs(tab, user, customId) {
 }
 
 async function createDoc(tab, body, user, customId) {
-  const regId = body?.spreadsheetId || body?.repositorySpreadsheetId || customId || runtimeConfig.repository.spreadsheetId;
+  const regId = cleanEnvId(body?.spreadsheetId) || cleanEnvId(body?.repositorySpreadsheetId) || cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
   const number = body.offerNumber || body.orderNumber;
   const id = body.id || crypto.randomUUID();
   if (!number || !body.customerName) {
@@ -1222,6 +1334,327 @@ async function createDoc(tab, body, user, customId) {
   }
 }
 
+// -------------------------------------------------------------
+// WORKFLOW & AGENT POWER TOOLS
+// -------------------------------------------------------------
+
+function normalizeWorkflowStatus(raw) {
+  const str = String(raw || '').toLowerCase().trim();
+  if (str.includes('fattur') || str === 'invoiced') return 'fatturato';
+  if (str.includes('spedit') || str === 'shipped' || str.includes('consegn')) return 'spedito';
+  if (str.includes('magazzin') || str.includes('preparaz') || str === 'picking') return 'magazzino';
+  if (str.includes('approvat') || str.includes('lavoraz') || str === 'approved') return 'approvato';
+  if (str.includes('respint') || str === 'rejected') return 'respinto';
+  return 'ricevuto';
+}
+
+async function updateOrderStatus(orderId, updateData, user) {
+  if (user?.role !== 'admin') {
+    throw new Error('Operazione riservata all’amministrazione');
+  }
+  const regId = cleanEnvId(updateData?.spreadsheetId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const tab = runtimeConfig.repository.tabOrders || 'Ordini';
+
+  const rawRows = await readRange(regId, `'${tab}'!A1:X1000`);
+  if (!rawRows || !rawRows.length) throw new Error('Nessun ordine presente nel foglio');
+
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const line = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+    if (line.includes('id') || line.includes('id record') || line.some(c => c.includes('numero ordine') || c.includes('numero documento'))) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx < 0) headerIdx = 0;
+  const header = (rawRows[headerIdx] || []).map(c => String(c || '').toLowerCase().trim());
+  const findCol = (patterns, excludes = []) => {
+    for (let k = 0; k < header.length; k++) {
+      const h = header[k];
+      const match = patterns.some(p => h === p || h.includes(p));
+      if (match && !excludes.some(ex => h.includes(ex))) return k;
+    }
+    return -1;
+  };
+
+  const idIdx = findCol(['id record', 'id']);
+  const numIdx = findCol(['numero ordine', 'numero documento', 'number'], ['id']);
+  const updIdx = findCol(['ultimo aggiornamento', 'updated_at']);
+  const statusIdx = findCol(['stato avanzamento', 'stato applicazione', 'status']);
+  const notesIdx = findCol(['nota azienda', 'note operative', 'note']);
+  const ddtNumIdx = findCol(['numero bolla / ddt', 'numero bolla', 'numero ddt', 'ddt']);
+  const ddtDateIdx = findCol(['data bolla', 'data ddt']);
+  const carrierIdx = findCol(['corriere', 'vettore']);
+  const trackNumIdx = findCol(['numero tracking', 'tracking']);
+  const trackLinkIdx = findCol(['link tracking']);
+  const shipDateIdx = findCol(['data spedizione']);
+
+  let targetRowIdx = -1;
+  for (let i = headerIdx + 1; i < rawRows.length; i++) {
+    const r = rawRows[i];
+    const rId = idIdx >= 0 ? cleanCell(r[idIdx]) : '';
+    const rNum = numIdx >= 0 ? cleanCell(r[numIdx]) : '';
+    if (rId === orderId || rNum === orderId) {
+      targetRowIdx = i;
+      break;
+    }
+  }
+
+  if (targetRowIdx < 0) {
+    throw new Error(`Ordine "${orderId}" non trovato nel registro`);
+  }
+
+  const existingRow = [...rawRows[targetRowIdx]];
+  while (existingRow.length < 24) existingRow.push('');
+
+  const now = new Date().toISOString();
+  if (updIdx >= 0) existingRow[updIdx] = now;
+  if (updateData.status && statusIdx >= 0) existingRow[statusIdx] = updateData.status;
+  if (updateData.notes !== undefined && notesIdx >= 0) existingRow[notesIdx] = updateData.notes;
+  if (updateData.ddtNumber !== undefined && ddtNumIdx >= 0) existingRow[ddtNumIdx] = updateData.ddtNumber;
+  if (updateData.ddtDate !== undefined && ddtDateIdx >= 0) existingRow[ddtDateIdx] = updateData.ddtDate;
+  if (updateData.carrier !== undefined && carrierIdx >= 0) existingRow[carrierIdx] = updateData.carrier;
+  if (updateData.trackingNumber !== undefined && trackNumIdx >= 0) existingRow[trackNumIdx] = updateData.trackingNumber;
+  if (updateData.trackingLink !== undefined && trackLinkIdx >= 0) existingRow[trackLinkIdx] = updateData.trackingLink;
+  if (updateData.shippingDate !== undefined && shipDateIdx >= 0) existingRow[shipDateIdx] = updateData.shippingDate;
+
+  const sheetRowNum = targetRowIdx + 1;
+  await updateRow(regId, `'${tab}'!A${sheetRowNum}:X${sheetRowNum}`, [existingRow]);
+
+  return { ok: true, orderId, updatedRow: sheetRowNum, status: updateData.status };
+}
+
+async function convertOfferToOrder(offerIdentifier, user, customId) {
+  const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const offersTab = runtimeConfig.repository.tabOffers || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOffers || 'Offerte';
+  const ordersTab = runtimeConfig.repository.tabOrders || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOrders || 'Ordini';
+
+  const offers = await listDocs(offersTab, user, regId);
+  const offer = offers.find(o => o.id === offerIdentifier || o.number === offerIdentifier || o.offerNumber === offerIdentifier);
+  if (!offer) {
+    throw new Error(`Offerta "${offerIdentifier}" non trovata`);
+  }
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+  const agentCode = offer.agent_code || user?.agentCode || 'AG01';
+  const orderNumber = `ORD-${agentCode}-${dateStr}-${timeStr}`;
+
+  const orderBody = {
+    id: crypto.randomUUID(),
+    orderNumber,
+    originOfferId: offer.number || offer.id,
+    agentCode: offer.agent_code,
+    agentName: offer.agent_name,
+    customerId: offer.customer_id,
+    customerName: offer.customer_name,
+    total: offer.total,
+    spreadsheetId: regId,
+    payload: {
+      convertedFromOffer: offer.number,
+      conversionDate: now.toISOString(),
+      convertedBy: user?.name || user?.username || 'Agente'
+    }
+  };
+
+  await createDoc(ordersTab, orderBody, user, regId);
+  return { ok: true, orderNumber, originOfferId: offer.number, order: orderBody };
+}
+
+async function createOfferRevision(offerIdentifier, user, customId) {
+  const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const offersTab = runtimeConfig.repository.tabOffers || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOffers || 'Offerte';
+  const offers = await listDocs(offersTab, user, regId);
+  const offer = offers.find(o => o.id === offerIdentifier || o.number === offerIdentifier || o.offerNumber === offerIdentifier);
+  if (!offer) {
+    throw new Error(`Offerta "${offerIdentifier}" non trovata`);
+  }
+
+  const baseNumber = (offer.number || '').replace(/-R\d+$/, '');
+  let maxRev = 0;
+  for (const o of offers) {
+    const num = o.number || '';
+    if (num.startsWith(baseNumber)) {
+      const match = num.match(/-R(\d+)$/);
+      if (match) {
+        const rev = parseInt(match[1], 10);
+        if (rev > maxRev) maxRev = rev;
+      }
+    }
+  }
+  const nextRevNum = `${baseNumber}-R${maxRev + 1}`;
+
+  const revisionBody = {
+    id: crypto.randomUUID(),
+    offerNumber: nextRevNum,
+    originOfferId: offer.number,
+    agentCode: offer.agent_code,
+    agentName: offer.agent_name,
+    customerId: offer.customer_id,
+    customerName: offer.customer_name,
+    total: offer.total,
+    version: `${(parseFloat(offer.version) || 1.0) + 1.0}`,
+    spreadsheetId: regId,
+    payload: {
+      revisionOf: offer.number,
+      revisionNumber: maxRev + 1,
+      createdAt: new Date().toISOString()
+    }
+  };
+
+  await createDoc(offersTab, revisionBody, user, regId);
+  return { ok: true, newOfferNumber: nextRevNum, originOfferNumber: offer.number, revision: revisionBody };
+}
+
+async function listVisits(user, customId) {
+  const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  await ensureSheetTab(regId, 'Giro_Visite');
+  const rows = await readRange(regId, "'Giro_Visite'!A1:L500").catch(() => []);
+  if (!rows || rows.length <= 1) return [];
+
+  const userRole = user?.role || 'agent';
+  const userAgentCode = normalizeAgentId(user?.agentCode || '');
+
+  const visits = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || !r[0]) continue;
+    const agCode = normalizeAgentId(r[1] || '');
+    if (userRole !== 'admin' && userAgentCode && agCode && agCode !== userAgentCode) {
+      continue;
+    }
+    visits.push({
+      id: r[0],
+      agentCode: agCode,
+      agentName: r[2] || '',
+      clientName: r[3] || '',
+      address: r[4] || '',
+      phone: r[5] || '',
+      date: r[6] || '',
+      time: r[7] || '',
+      status: r[8] || 'Programmata',
+      notes: r[9] || '',
+      followUpDate: r[10] || '',
+      createdAt: r[11] || ''
+    });
+  }
+  return visits;
+}
+
+async function saveVisit(data, user) {
+  const regId = cleanEnvId(data?.spreadsheetId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  await ensureSheetTab(regId, 'Giro_Visite');
+  const now = new Date().toISOString();
+  const id = data.id || `VIS-${Date.now()}`;
+  const agentCode = normalizeAgentId(user?.agentCode || data.agentCode || 'AG01');
+  const agentName = user?.name || data.agentName || knownAgentNames[agentCode] || 'Agente';
+
+  const rows = await readRange(regId, "'Giro_Visite'!A1:L500").catch(() => []);
+  if (!rows || rows.length === 0) {
+    const header = ['ID Visita', 'Codice Agente', 'Agente', 'Cliente o Prospect', 'Indirizzo e Città', 'Telefono', 'Data Visita', 'Ora', 'Stato Visita', 'Note ed Esito', 'Data Follow-up', 'Data Creazione'];
+    await append(regId, "'Giro_Visite'!A1", [header]);
+  }
+
+  let existingRowIdx = -1;
+  if (rows && rows.length > 1) {
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i] && rows[i][0] === id) {
+        existingRowIdx = i + 1;
+        break;
+      }
+    }
+  }
+
+  const row = [
+    id,
+    agentCode,
+    agentName,
+    data.clientName || '',
+    data.address || '',
+    data.phone || '',
+    data.date || '',
+    data.time || '',
+    data.status || 'Programmata',
+    data.notes || '',
+    data.followUpDate || '',
+    data.createdAt || now
+  ];
+
+  if (existingRowIdx > 0) {
+    await updateRow(regId, `'Giro_Visite'!A${existingRowIdx}:L${existingRowIdx}`, [row]);
+  } else {
+    await append(regId, "'Giro_Visite'!A:L", [row]);
+  }
+
+  return { ok: true, id, visit: { ...data, id, agentCode, agentName } };
+}
+
+async function listProspects(user, customId) {
+  const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  await ensureSheetTab(regId, 'Contatti_Prospect');
+  const rows = await readRange(regId, "'Contatti_Prospect'!A1:K500").catch(() => []);
+  if (!rows || rows.length <= 1) return [];
+
+  const userRole = user?.role || 'agent';
+  const userAgentCode = normalizeAgentId(user?.agentCode || '');
+
+  const prospects = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || !r[0]) continue;
+    const agCode = normalizeAgentId(r[1] || '');
+    if (userRole !== 'admin' && userAgentCode && agCode && agCode !== userAgentCode) {
+      continue;
+    }
+    prospects.push({
+      id: r[0],
+      agentCode: agCode,
+      companyName: r[2] || '',
+      contactPerson: r[3] || '',
+      phone: r[4] || '',
+      email: r[5] || '',
+      address: r[6] || '',
+      city: r[7] || '',
+      interest: r[8] || '',
+      notes: r[9] || '',
+      createdAt: r[10] || ''
+    });
+  }
+  return prospects;
+}
+
+async function saveProspect(data, user) {
+  const regId = cleanEnvId(data?.spreadsheetId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  await ensureSheetTab(regId, 'Contatti_Prospect');
+  const now = new Date().toISOString();
+  const id = data.id || `PROSP-${Date.now()}`;
+  const agentCode = normalizeAgentId(user?.agentCode || data.agentCode || 'AG01');
+
+  const rows = await readRange(regId, "'Contatti_Prospect'!A1:K500").catch(() => []);
+  if (!rows || rows.length === 0) {
+    const header = ['ID Prospect', 'Codice Agente', 'Ragione Sociale', 'Referente', 'Telefono', 'Email', 'Indirizzo', 'Città', 'Settore Interesse', 'Note', 'Data Creazione'];
+    await append(regId, "'Contatti_Prospect'!A1", [header]);
+  }
+
+  const row = [
+    id,
+    agentCode,
+    data.companyName || '',
+    data.contactPerson || '',
+    data.phone || '',
+    data.email || '',
+    data.address || '',
+    data.city || '',
+    data.interest || '',
+    data.notes || '',
+    now
+  ];
+
+  await append(regId, "'Contatti_Prospect'!A:K", [row]);
+  return { ok: true, id, prospect: { ...data, id, agentCode } };
+}
+
 // Netlify Function Entry Point
 export default async (request, context) => {
   try {
@@ -1349,6 +1782,66 @@ export default async (request, context) => {
 
     if (path === 'orders' && request.method === 'POST') {
       return createDoc(runtimeConfig.repository.tabOrders || 'Ordini', await request.json(), user, url.searchParams.get('id') || undefined);
+    }
+
+    // Workflow & order status update (admin only)
+    if (path === 'orders/update-status' && request.method === 'POST') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      const body = await request.json().catch(() => ({}));
+      try {
+        const result = await updateOrderStatus(body.orderId || body.number, body, user);
+        return json(200, result);
+      } catch (err) {
+        return json(400, { error: err.message });
+      }
+    }
+
+    // Convert offer to order (1-click)
+    if (path === 'offers/convert-to-order' && request.method === 'POST') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      const body = await request.json().catch(() => ({}));
+      try {
+        const result = await convertOfferToOrder(body.offerNumber || body.offerId, user);
+        return json(200, result);
+      } catch (err) {
+        return json(400, { error: err.message });
+      }
+    }
+
+    // Create offer revision
+    if (path === 'offers/revision' && request.method === 'POST') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      const body = await request.json().catch(() => ({}));
+      try {
+        const result = await createOfferRevision(body.offerNumber || body.offerId, user);
+        return json(200, result);
+      } catch (err) {
+        return json(400, { error: err.message });
+      }
+    }
+
+    // Visits (Giro Visite)
+    if (path === 'visits' && request.method === 'GET') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      return json(200, { visits: await listVisits(user) });
+    }
+
+    if (path === 'visits' && request.method === 'POST') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      const body = await request.json().catch(() => ({}));
+      return json(200, await saveVisit(body, user));
+    }
+
+    // Prospects (Contatti)
+    if (path === 'prospects' && request.method === 'GET') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      return json(200, { prospects: await listProspects(user) });
+    }
+
+    if (path === 'prospects' && request.method === 'POST') {
+      if (!user) return json(401, { error: 'Accesso non autorizzato' });
+      const body = await request.json().catch(() => ({}));
+      return json(200, await saveProspect(body, user));
     }
 
     return json(404, { error: 'Servizio non disponibile: ' + path });

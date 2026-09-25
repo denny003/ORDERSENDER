@@ -1,9 +1,11 @@
-const CACHE = 'offerte-agenti-v21';
+const CACHE = 'offerte-agenti-v23';
 const ASSETS = [
   '/',
   '/index.html',
   '/offerta',
   '/configurazione.html',
+  '/gestione-ordini.html',
+  '/giro-visite.html',
   '/offer-app.js',
   '/config/companyConfig.js',
   '/styles.css',

@@ -1,7 +1,7 @@
 // Unified company and Google Sheets configuration
-// Central cloud-synced architecture: configuration is stored in Google Drive and shared across all devices and agents.
+// ID fissi immutabili da GOOGLE-DRIVE/dati-configurazione: nessun agente deve mai inserirli a mano!
 
-const defaultConfig = {
+const OFFICIAL_SYSTEM_SPREADSHEETS = Object.freeze({
   company: {
     sheetName: "Dati_Azienda_e_Mandanti",
     spreadsheetId: "1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M",
@@ -34,22 +34,54 @@ const defaultConfig = {
     folderId: "1lr8lThQr1SxP4LAx2n69_pDxwu36ifh9"
   },
   lastUpdate: "",
-  source: "Configurazione predefinita Google Drive"
-};
+  source: "Configurazione fissa di sistema (Google Drive)"
+});
 
-function isMockId(id) {
-  if (!id || typeof id !== 'string') return false;
-  return id.includes('1mnW') || id.includes('1N6ZcGa');
+const defaultConfig = JSON.parse(JSON.stringify(OFFICIAL_SYSTEM_SPREADSHEETS));
+
+function isInvalidSpreadsheetId(id) {
+  if (!id || typeof id !== 'string') return true;
+  const s = id.trim();
+  if (s.length < 20) return true;
+  if (s.includes('1mnW') || s.includes('1N6ZcGa') || s.includes('undefined') || s.includes('null')) return true;
+  return false;
 }
 
 function sanitizeConfig(cfg) {
-  if (!cfg || typeof cfg !== 'object') return null;
+  if (!cfg || typeof cfg !== 'object') return JSON.parse(JSON.stringify(OFFICIAL_SYSTEM_SPREADSHEETS));
   const c = JSON.parse(JSON.stringify(cfg));
-  if (isMockId(c.company?.spreadsheetId)) c.company.spreadsheetId = defaultConfig.company.spreadsheetId;
-  if (isMockId(c.agents?.spreadsheetId)) c.agents.spreadsheetId = defaultConfig.agents.spreadsheetId;
-  if (isMockId(c.customers?.spreadsheetId)) c.customers.spreadsheetId = defaultConfig.customers.spreadsheetId;
-  if (isMockId(c.products?.spreadsheetId)) c.products.spreadsheetId = defaultConfig.products.spreadsheetId;
-  if (isMockId(c.repository?.spreadsheetId)) c.repository.spreadsheetId = defaultConfig.repository.spreadsheetId;
+  c.company = c.company || {};
+  c.agents = c.agents || {};
+  c.customers = c.customers || {};
+  c.products = c.products || {};
+  c.repository = c.repository || {};
+  c.googleDrive = c.googleDrive || {};
+
+  if (isInvalidSpreadsheetId(c.company?.spreadsheetId)) c.company.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.company.spreadsheetId;
+  if (!c.company.sheetName) c.company.sheetName = OFFICIAL_SYSTEM_SPREADSHEETS.company.sheetName;
+  if (!c.company.tab) c.company.tab = OFFICIAL_SYSTEM_SPREADSHEETS.company.tab;
+
+  if (isInvalidSpreadsheetId(c.agents?.spreadsheetId)) c.agents.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId;
+  if (!c.agents.fileName) c.agents.fileName = OFFICIAL_SYSTEM_SPREADSHEETS.agents.fileName;
+  if (!c.agents.tab) c.agents.tab = OFFICIAL_SYSTEM_SPREADSHEETS.agents.tab;
+
+  if (isInvalidSpreadsheetId(c.customers?.spreadsheetId)) c.customers.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.customers.spreadsheetId;
+  if (!c.customers.fileName) c.customers.fileName = OFFICIAL_SYSTEM_SPREADSHEETS.customers.fileName;
+  if (!c.customers.tab) c.customers.tab = OFFICIAL_SYSTEM_SPREADSHEETS.customers.tab;
+
+  if (isInvalidSpreadsheetId(c.products?.spreadsheetId)) c.products.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.products.spreadsheetId;
+  if (!c.products.fileName) c.products.fileName = OFFICIAL_SYSTEM_SPREADSHEETS.products.fileName;
+  if (!c.products.tab) c.products.tab = OFFICIAL_SYSTEM_SPREADSHEETS.products.tab;
+
+  if (isInvalidSpreadsheetId(c.repository?.spreadsheetId)) c.repository.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  if (!c.repository.folder) c.repository.folder = OFFICIAL_SYSTEM_SPREADSHEETS.repository.folder;
+  if (!c.repository.fileName) c.repository.fileName = OFFICIAL_SYSTEM_SPREADSHEETS.repository.fileName;
+  if (!c.repository.tabOffers) c.repository.tabOffers = OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOffers;
+  if (!c.repository.tabOrders) c.repository.tabOrders = OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOrders;
+
+  if (!c.googleDrive.folderId) c.googleDrive.folderId = OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive.folderId;
+  if (!c.googleDrive.sourceFolderUrl) c.googleDrive.sourceFolderUrl = OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive.sourceFolderUrl;
+
   return c;
 }
 
@@ -157,7 +189,8 @@ async function saveCompanyConfig(cfg) {
   return window.companyConfig;
 }
 
-// Automatically sync cloud configuration in background on page load
 if (typeof window !== 'undefined') {
+  window.OFFICIAL_SYSTEM_SPREADSHEETS = OFFICIAL_SYSTEM_SPREADSHEETS;
   window.companyConfigPromise = loadCompanyConfig();
 }
+

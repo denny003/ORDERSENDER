@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestione Ordini & Magazzino — Offerte Agenti</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .workflow-shell { max-width: 1240px; margin: 0 auto; padding: 28px 20px 60px; }
+    .workflow-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px; }
+    .workflow-title h1 { font-size: 1.7rem; margin: 0 0 4px; color: var(--navy); }
+    .workflow-title p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* Stats Grid */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .stat-pill { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; box-shadow: var(--shadow); transition: transform .15s; }
+    .stat-pill:hover { transform: translateY(-2px); }
+    .stat-pill small { display: block; font-size: .75rem; text-transform: uppercase; font-weight: 700; letter-spacing: .05em; color: var(--muted); margin-bottom: 4px; }
+    .stat-pill .num { font-size: 1.6rem; font-weight: 800; color: var(--navy); line-height: 1.1; }
+    .stat-pill .sub { font-size: .8rem; color: #16835b; font-weight: 600; margin-top: 3px; display: block; }
+
+    /* Filter Tabs */
+    .filter-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .tab-btn { background: transparent; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; font-weight: 700; font-size: .88rem; color: var(--muted); cursor: pointer; white-space: nowrap; transition: all .15s; }
+    .tab-btn:hover { color: var(--navy); }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab-btn .badge { background: #e2e8f0; color: #334155; padding: 2px 7px; border-radius: 10px; font-size: .75rem; margin-left: 6px; font-weight: 750; }
+    .tab-btn.active .badge { background: #dbeafe; color: var(--blue); }
+
+    /* Search & Bar */
+    .search-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .search-input { flex: 1; min-width: 260px; background: #fff; border: 1px solid #cfdbe1; border-radius: 10px; padding: 11px 16px; font-size: .92rem; }
+    .search-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(32,118,181,.12); }
+
+    /* Order Cards */
+    .orders-grid { display: flex; flex-direction: column; gap: 14px; }
+    .order-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); transition: all .2s; }
+    .order-card:hover { border-color: #94bcd8; box-shadow: 0 10px 30px rgba(12,41,64,.09); }
+    .order-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+    .order-main-info { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .order-num { font-size: 1.15rem; font-weight: 800; color: var(--navy); font-family: monospace; }
+    .order-date { font-size: .82rem; color: var(--muted); }
+    .order-customer { font-size: 1.05rem; font-weight: 750; color: #1e293b; margin: 4px 0 2px; }
+    .order-agent { font-size: .84rem; color: #475569; }
+
+    /* Workflow Badges */
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: .8rem; font-weight: 750; letter-spacing: .02em; }
+    .status-ricevuto { background: #fef3c7; color: #92400e; }
+    .status-approvato { background: #e0f2fe; color: #0369a1; }
+    .status-magazzino { background: #ede9fe; color: #6d28d9; }
+    .status-spedito { background: #dcfce7; color: #15803d; }
+    .status-fatturato { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+    .status-respinto { background: #fee2e2; color: #991b1b; }
+
+    /* Shipping Details Box inside Card */
+    .shipping-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: .84rem; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+    .shipping-box strong { color: #334155; }
+    .shipping-box a { color: var(--blue); text-decoration: none; font-weight: 700; }
+    .shipping-box a:hover { text-decoration: underline; }
+
+    /* Card Actions */
+    .order-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 14px; margin-top: 12px; flex-wrap: wrap; gap: 10px; }
+    .order-total { font-size: 1.25rem; font-weight: 800; color: var(--navy); }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm { padding: 8px 12px; font-size: .82rem; border-radius: 8px; }
+    .btn-next-step { background: #0284c7; color: #fff; font-weight: 750; }
+    .btn-next-step:hover { background: #0369a1; }
+
+    /* Print Preview Modal */
+    .print-doc { background: #fff; padding: 32px; color: #0f172a; font-family: Inter, sans-serif; line-height: 1.5; }
+    .print-header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
+    .print-title { font-size: 1.6rem; font-weight: 800; color: #0f172a; text-transform: uppercase; margin: 0; }
+    .print-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: .9rem; }
+    .print-table th, .print-table td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+    .print-table th { background: #f1f5f9; font-weight: 700; }
+    .print-table td.text-right { text-align: right; }
+    .print-table td.center { text-align: center; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea * { visibility: visible; }
+      #printableArea { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">OA</span>
+      <div>
+        <strong>Offerte Agenti</strong>
+        <small>Gestione Ordini, Magazzino & DDT</small>
+      </div>
+    </div>
+    <div class="heading-actions">
+      <a class="btn secondary" href="/">← Torna alle pratiche</a>
+      <a class="btn secondary" href="/configurazione.html">⚙️ Configurazione</a>
+    </div>
+  </header>
+
+  <main class="workflow-shell">
+    <div class="workflow-header">
+      <div class="workflow-title">
+        <h1>Pipeline Ordini & Spedizioni</h1>
+        <p>Avanzamento lavorazione: Ricezione → Approvazione → Picking Magazzino → Bolla/DDT → Fatturazione</p>
+      </div>
+      <div>
+        <button type="button" id="btnRefresh" class="btn secondary">🔄 Aggiorna dati</button>
+      </div>
+    </div>
+
+    <!-- STATS SUMMARY -->
+    <div class="stats-row">
+      <div class="stat-pill">
+        <small>📥 Ricevuti</small>
+        <div class="num" id="statRicevuti">0</div>
+        <span class="sub" id="statRicevutiTot">0,00 €</span>
+      </div>
+      <div class="stat-pill">
+        <small>⚙️ In Lavorazione</small>
+        <div class="num" id="statApprovati">0</div>
+        <span class="sub" id="statApprovatiTot">0,00 €</span>
+      </div>
+      <div class="stat-pill">
+        <small>📦 In Picking</small>
+        <div class="num" id="statMagazzino">0</div>
+        <span class="sub" id="statMagazzinoTot">0,00 €</span>
+      </div>
+      <div class="stat-pill">
+        <small>🚚 Spediti / DDT</small>
+        <div class="num" id="statSpediti">0</div>
+        <span class="sub" id="statSpeditiTot">0,00 €</span>
+      </div>
+      <div class="stat-pill">
+        <small>💶 Fatturati</small>
+        <div class="num" id="statFatturati">0</div>
+        <span class="sub" id="statFatturatiTot">0,00 €</span>
+      </div>
+    </div>
+
+    <!-- FILTER TABS -->
+    <div class="filter-tabs">
+      <button class="tab-btn active" data-filter="all">Tutti gli Ordini <span class="badge" id="tabCountAll">0</span></button>
+      <button class="tab-btn" data-filter="ricevuto">📥 Ricevuti <span class="badge" id="tabCountRicevuti">0</span></button>
+      <button class="tab-btn" data-filter="approvato">⚙️ In Lavorazione <span class="badge" id="tabCountApprovati">0</span></button>
+      <button class="tab-btn" data-filter="magazzino">📦 Magazzino <span class="badge" id="tabCountMagazzino">0</span></button>
+      <button class="tab-btn" data-filter="spedito">🚚 Spediti con DDT <span class="badge" id="tabCountSpediti">0</span></button>
+      <button class="tab-btn" data-filter="fatturato">💶 Fatturati <span class="badge" id="tabCountFatturati">0</span></button>
+    </div>
+
+    <!-- SEARCH BAR -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 Cerca per numero ordine, cliente, agente o DDT…">
+    </div>
+
+    <!-- ORDERS LIST -->
+    <div id="ordersContainer" class="orders-grid">
+      <div style="text-align:center; padding: 40px; color: var(--muted);">Caricamento ordini in corso…</div>
+    </div>
+  </main>
+
+  <!-- MODAL: AGGIORNA STATO E SPEDIZIONE -->
+  <dialog id="statusModal">
+    <form id="statusForm" method="dialog">
+      <div class="dialog-head">
+        <div>
+          <h2 id="modalOrderNumber">Aggiorna Ordine</h2>
+          <p id="modalCustomerName">Modifica stato di avanzamento e dati di trasporto</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('statusModal').close()">✕</button>
+      </div>
+
+      <input type="hidden" id="modalOrderId">
+
+      <div class="field" style="margin-bottom:14px;">
+        <span>Stato Avanzamento</span>
+        <select id="modalStatusSelect" required>
+          <option value="ricevuto">📥 Ricevuto (In verifica)</option>
+          <option value="approvato">⚙️ In Lavorazione (Approvato per evasione)</option>
+          <option value="magazzino">📦 In Preparazione Magazzino (Picking list pronta)</option>
+          <option value="spedito">🚚 Spedito (Merce affidata al corriere con DDT)</option>
+          <option value="fatturato">💶 Fatturato (Ciclo concluso)</option>
+          <option value="respinto">❌ Respinto / Annullato</option>
+        </select>
+      </div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:14px;">
+        <strong style="display:block; font-size:.85rem; color:#1e293b; margin-bottom:8px;">📦 Dati Bolla di Consegna / DDT & Spedizione</strong>
+        <div class="two-cols">
+          <div class="field">
+            <span>Numero Bolla / DDT</span>
+            <input type="text" id="modalDdtNumber" placeholder="Es. DDT-2026-0042">
+          </div>
+          <div class="field">
+            <span>Data Bolla / DDT</span>
+            <input type="date" id="modalDdtDate">
+          </div>
+        </div>
+
+        <div class="two-cols" style="margin-top:10px;">
+          <div class="field">
+            <span>Corriere / Vettore</span>
+            <select id="modalCarrier">
+              <option value="">Seleziona corriere…</option>
+              <option value="GLS">GLS</option>
+              <option value="BRT">BRT (Bartolini)</option>
+              <option value="DHL">DHL Express</option>
+              <option value="TNT / FedEx">TNT / FedEx</option>
+              <option value="SDA / Poste">SDA / Poste Italiane</option>
+              <option value="Mezzo proprio">Consegna con mezzo proprio</option>
+              <option value="Ritiro cliente">Ritiro diretto del cliente</option>
+            </select>
+          </div>
+          <div class="field">
+            <span>Numero di Tracking</span>
+            <input type="text" id="modalTrackingNumber" placeholder="Codice spedizione">
+          </div>
+        </div>
+
+        <div class="two-cols" style="margin-top:10px;">
+          <div class="field">
+            <span>Data Effettiva Spedizione</span>
+            <input type="date" id="modalShippingDate">
+          </div>
+          <div class="field">
+            <span>Link Tracking Vettore</span>
+            <input type="url" id="modalTrackingLink" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Note Operative Azienda (visibili all'agente)</span>
+        <textarea id="modalNotes" rows="2" placeholder="Es. Consegna prevista per martedì pomeriggio..."></textarea>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" onclick="$('statusModal').close()">Annulla</button>
+        <button type="submit" id="btnSaveStatus" class="btn primary">💾 Salva e aggiorna Google Sheets</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- MODAL: ANTEPRIMA STAMPA (PICKING LIST / DDT) -->
+  <dialog id="printModal" style="width: min(850px, calc(100vw - 28px));">
+    <div style="padding: 20px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+        <button type="button" class="btn primary" onclick="window.print()">🖨️ Stampa Documento</button>
+        <button type="button" class="icon-btn" onclick="$('printModal').close()">✕</button>
+      </div>
+      <div id="printableArea" class="print-doc"></div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/config/companyConfig.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const toast = msg => {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2600);
+    };
+
+    const euro = val => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(val) || 0);
+
+    let allOrders = [];
+    let currentFilter = 'all';
+
+    async function loadOrders() {
+      try {
+        if (window.companyConfigPromise) {
+          try { await window.companyConfigPromise; } catch {}
+        }
+        const rawRepo = window.companyConfig?.repository?.spreadsheetId;
+        const repoId = (rawRepo && rawRepo.length >= 20 && !rawRepo.includes('1mnW')) ? rawRepo : '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
+        const res = await fetch(`/api/orders?id=${encodeURIComponent(repoId)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allOrders = data.orders || [];
+        updateStats();
+        renderOrders();
+      } catch (err) {
+        console.error(err);
+        $('ordersContainer').innerHTML = `
+          <div style="text-align:center; padding: 40px; color: #c5221f;">
+            Errore caricamento ordini: ${err.message}. Riprova tra poco.
+          </div>
+        `;
+      }
+    }
+
+    function updateStats() {
+      const counts = { ricevuto: 0, approvato: 0, magazzino: 0, spedito: 0, fatturato: 0 };
+      const totals = { ricevuto: 0, approvato: 0, magazzino: 0, spedito: 0, fatturato: 0 };
+
+      for (const ord of allOrders) {
+        const st = ord.workflow_status || 'ricevuto';
+        if (counts[st] !== undefined) {
+          counts[st]++;
+          totals[st] += (Number(ord.total) || 0);
+        }
+      }
+
+      $('statRicevuti').textContent = counts.ricevuto;
+      $('statRicevutiTot').textContent = euro(totals.ricevuto);
+      $('statApprovati').textContent = counts.approvato;
+      $('statApprovatiTot').textContent = euro(totals.approvato);
+      $('statMagazzino').textContent = counts.magazzino;
+      $('statMagazzinoTot').textContent = euro(totals.magazzino);
+      $('statSpediti').textContent = counts.spedito;
+      $('statSpeditiTot').textContent = euro(totals.spedito);
+      $('statFatturati').textContent = counts.fatturato;
+      $('statFatturatiTot').textContent = euro(totals.fatturato);
+
+      $('tabCountAll').textContent = allOrders.length;
+      $('tabCountRicevuti').textContent = counts.ricevuto;
+      $('tabCountApprovati').textContent = counts.approvato;
+      $('tabCountMagazzino').textContent = counts.magazzino;
+      $('tabCountSpediti').textContent = counts.spedito;
+      $('tabCountFatturati').textContent = counts.fatturato;
+    }
+
+    function renderOrders() {
+      const term = $('searchInput').value.trim().toLowerCase();
+      const filtered = allOrders.filter(ord => {
+        const matchesTab = currentFilter === 'all' || ord.workflow_status === currentFilter;
+        if (!matchesTab) return false;
+        if (!term) return true;
+        const haystack = `${ord.number} ${ord.customer_name} ${ord.agent_name} ${ord.ddt_number || ''} ${ord.carrier || ''}`.toLowerCase();
+        return haystack.includes(term);
+      });
+
+      if (!filtered.length) {
+        $('ordersContainer').innerHTML = `
+          <div style="text-align:center; padding: 48px; background:#fff; border-radius:14px; border:1px solid var(--line); color:var(--muted);">
+            Nessun ordine trovato con i criteri selezionati.
+          </div>
+        `;
+        return;
+      }
+
+      $('ordersContainer').innerHTML = filtered.map(ord => {
+        const st = ord.workflow_status || 'ricevuto';
+        const stLabels = {
+          ricevuto: { label: '📥 Ricevuto', cls: 'status-ricevuto', next: 'approvato', nextLabel: '⚙️ Approva Ordine' },
+          approvato: { label: '⚙️ In Lavorazione', cls: 'status-approvato', next: 'magazzino', nextLabel: '📦 Invia a Magazzino (Picking)' },
+          magazzino: { label: '📦 In Magazzino (Picking)', cls: 'status-magazzino', next: 'spedito', nextLabel: '🚚 Spedisci con DDT' },
+          spedito: { label: '🚚 Spedito', cls: 'status-spedito', next: 'fatturato', nextLabel: '💶 Segna come Fatturato' },
+          fatturato: { label: '💶 Fatturato & Concluso', cls: 'status-fatturato', next: null, nextLabel: '' },
+          respinto: { label: '❌ Respinto', cls: 'status-respinto', next: null, nextLabel: '' }
+        };
+        const currentMeta = stLabels[st] || stLabels.ricevuto;
+
+        // Shipping box if shipping info present
+        const hasShipping = ord.ddt_number || ord.carrier || ord.shipping_date || ord.tracking_number;
+        const shippingHtml = hasShipping ? `
+          <div class="shipping-box">
+            ${ord.ddt_number ? `<span>📄 <strong>DDT:</strong> ${ord.ddt_number} ${ord.ddt_date ? `(${ord.ddt_date})` : ''}</span>` : ''}
+            ${ord.carrier ? `<span>🚚 <strong>Vettore:</strong> ${ord.carrier}</span>` : ''}
+            ${ord.shipping_date ? `<span>📅 <strong>Spedito il:</strong> ${ord.shipping_date}</span>` : ''}
+            ${ord.tracking_number ? `<span>🏷️ <strong>Tracking:</strong> ${ord.tracking_link ? `<a href="${ord.tracking_link}" target="_blank">${ord.tracking_number} ↗</a>` : ord.tracking_number}</span>` : ''}
+          </div>
+        ` : '';
+
+        return `
+          <div class="order-card" data-id="${ord.id || ord.number}">
+            <div class="order-header">
+              <div>
+                <div class="order-main-info">
+                  <span class="order-num">${ord.number}</span>
+                  <span class="order-date">📅 ${ord.submitted_at ? new Date(ord.submitted_at).toLocaleDateString('it-IT') : ''}</span>
+                  <span class="status-badge ${currentMeta.cls}">${currentMeta.label}</span>
+                </div>
+                <div class="order-customer">${ord.customer_name || 'Cliente non specificato'}</div>
+                <div class="order-agent">👤 Agente: <strong>${ord.agent_name || ord.agent_code || 'N/D'}</strong> ${ord.origin_offer_id ? `· Da Offerta: <strong>${ord.origin_offer_id}</strong>` : ''}</div>
+              </div>
+              <div class="order-total">${euro(ord.total)}</div>
+            </div>
+
+            ${shippingHtml}
+            ${ord.notes ? `<div style="font-size:.82rem; color:var(--muted); margin-bottom:8px;">💡 <em>${ord.notes}</em></div>` : ''}
+
+            <div class="order-actions">
+              <div class="btn-group">
+                <button type="button" class="btn secondary btn-sm" onclick="openPrintPicking('${ord.id || ord.number}')">📦 Stampa Picking</button>
+                <button type="button" class="btn secondary btn-sm" onclick="openPrintDdt('${ord.id || ord.number}')">📄 Stampa DDT</button>
+              </div>
+              <div class="btn-group">
+                <button type="button" class="btn secondary btn-sm" onclick="openStatusModal('${ord.id || ord.number}')">✏️ Modifica Stato & DDT</button>
+                ${currentMeta.next ? `<button type="button" class="btn btn-next-step btn-sm" onclick="quickNextStep('${ord.id || ord.number}', '${currentMeta.next}')">${currentMeta.nextLabel}</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Filter tab clicks
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        renderOrders();
+      };
+    });
+
+    $('searchInput').oninput = renderOrders;
+    $('btnRefresh').onclick = loadOrders;
+
+    function openStatusModal(orderId) {
+      const ord = allOrders.find(o => (o.id === orderId || o.number === orderId));
+      if (!ord) return;
+
+      $('modalOrderId').value = ord.id || ord.number;
+      $('modalOrderNumber').textContent = `Aggiorna Ordine ${ord.number}`;
+      $('modalCustomerName').textContent = `Cliente: ${ord.customer_name || 'N/D'} · Totale: ${euro(ord.total)}`;
+      $('modalStatusSelect').value = ord.workflow_status || 'ricevuto';
+      $('modalDdtNumber').value = ord.ddt_number || '';
+      $('modalDdtDate').value = ord.ddt_date || '';
+      $('modalCarrier').value = ord.carrier || '';
+      $('modalTrackingNumber').value = ord.tracking_number || '';
+      $('modalTrackingLink').value = ord.tracking_link || '';
+      $('modalShippingDate').value = ord.shipping_date || (ord.workflow_status === 'magazzino' ? new Date().toISOString().slice(0, 10) : '');
+      $('modalNotes').value = ord.notes || '';
+
+      $('statusModal').showModal();
+    }
+
+    async function quickNextStep(orderId, nextStatus) {
+      if (nextStatus === 'spedito') {
+        // Open modal to prompt for DDT number
+        openStatusModal(orderId);
+        $('modalStatusSelect').value = 'spedito';
+        if (!$('modalDdtNumber').value) {
+          const ord = allOrders.find(o => o.id === orderId || o.number === orderId);
+          const year = new Date().getFullYear();
+          $('modalDdtNumber').value = `DDT-${year}-${(ord?.number || '').slice(-4)}`;
+          $('modalDdtDate').value = new Date().toISOString().slice(0, 10);
+        }
+        return;
+      }
+
+      await saveStatusUpdate(orderId, { status: nextStatus });
+    }
+
+    $('statusForm').onsubmit = async e => {
+      e.preventDefault();
+      const orderId = $('modalOrderId').value;
+      const data = {
+        status: $('modalStatusSelect').value,
+        ddtNumber: $('modalDdtNumber').value.trim(),
+        ddtDate: $('modalDdtDate').value,
+        carrier: $('modalCarrier').value,
+        trackingNumber: $('modalTrackingNumber').value.trim(),
+        trackingLink: $('modalTrackingLink').value.trim(),
+        shippingDate: $('modalShippingDate').value,
+        notes: $('modalNotes').value.trim()
+      };
+
+      $('btnSaveStatus').disabled = true;
+      $('btnSaveStatus').textContent = 'Salvataggio…';
+      try {
+        await saveStatusUpdate(orderId, data);
+        $('statusModal').close();
+      } finally {
+        $('btnSaveStatus').disabled = false;
+        $('btnSaveStatus').textContent = '💾 Salva e aggiorna Google Sheets';
+      }
+    };
+
+    async function saveStatusUpdate(orderId, updateData) {
+      try {
+        const res = await fetch('/api/orders/update-status', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ orderId, ...updateData })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore aggiornamento');
+
+        toast('Stato ordine aggiornato su Google Sheets!');
+        // Update local object immediately
+        const ord = allOrders.find(o => o.id === orderId || o.number === orderId);
+        if (ord) {
+          if (updateData.status) ord.workflow_status = updateData.status;
+          if (updateData.ddtNumber !== undefined) ord.ddt_number = updateData.ddtNumber;
+          if (updateData.ddtDate !== undefined) ord.ddt_date = updateData.ddtDate;
+          if (updateData.carrier !== undefined) ord.carrier = updateData.carrier;
+          if (updateData.trackingNumber !== undefined) ord.tracking_number = updateData.trackingNumber;
+          if (updateData.trackingLink !== undefined) ord.tracking_link = updateData.trackingLink;
+          if (updateData.shippingDate !== undefined) ord.shipping_date = updateData.shippingDate;
+          if (updateData.notes !== undefined) ord.notes = updateData.notes;
+        }
+        updateStats();
+        renderOrders();
+      } catch (err) {
+        toast(`Errore: ${err.message}`);
+      }
+    }
+
+    // Print Picking List for warehouse staff
+    function openPrintPicking(orderId) {
+      const ord = allOrders.find(o => o.id === orderId || o.number === orderId);
+      if (!ord) return;
+
+      const dateStr = ord.submitted_at ? new Date(ord.submitted_at).toLocaleDateString('it-IT') : new Date().toLocaleDateString('it-IT');
+      $('printableArea').innerHTML = `
+        <div class="print-header">
+          <div>
+            <h1 class="print-title">📦 DISTINTA DI PRELIEVO (PICKING)</h1>
+            <div style="font-size:1.1rem; font-weight:700; color:#334155; margin-top:4px;">Ordine: ${ord.number}</div>
+          </div>
+          <div style="text-align:right;">
+            <div><strong>Data:</strong> ${dateStr}</div>
+            <div><strong>Agente:</strong> ${ord.agent_name || ord.agent_code || 'N/D'}</div>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 16px; margin-bottom:20px;">
+          <div><strong>Cliente di destinazione:</strong> ${ord.customer_name}</div>
+          ${ord.notes ? `<div style="margin-top:4px; font-size:.85rem; color:#475569;">Note preparazione: ${ord.notes}</div>` : ''}
+        </div>
+
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th style="width:40px;" class="center">Prelevato</th>
+              <th style="width:120px;">Codice Articolo</th>
+              <th>Descrizione Prodotto</th>
+              <th style="width:80px;" class="center">Quantità</th>
+              <th style="width:140px;">Ubicazione / Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="center"><span style="display:inline-block; width:18px; height:18px; border:2px solid #334155; border-radius:3px;"></span></td>
+              <td><strong>Articoli Ordine</strong></td>
+              <td>Totale Documento: ${euro(ord.total)}</td>
+              <td class="center">1 compl.</td>
+              <td>Pallet / Scatola</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; margin-top:40px; padding-top:20px; border-top:1px solid #cbd5e1;">
+          <div>Data e Ora Inizio: ___________________</div>
+          <div>Firma Addetto Magazzino: ___________________</div>
+        </div>
+      `;
+      $('printModal').showModal();
+    }
+
+    // Print DDT / Bolla di Consegna
+    function openPrintDdt(orderId) {
+      const ord = allOrders.find(o => o.id === orderId || o.number === orderId);
+      if (!ord) return;
+
+      const ddtNum = ord.ddt_number || `DDT-${new Date().getFullYear()}-${(ord.number || '').slice(-4)}`;
+      const ddtDate = ord.ddt_date || new Date().toISOString().slice(0, 10);
+
+      $('printableArea').innerHTML = `
+        <div class="print-header">
+          <div>
+            <h1 class="print-title">DOCUMENTO DI TRASPORTO (D.D.T.)</h1>
+            <div style="font-size:1.15rem; font-weight:800; color:#0369a1; margin-top:4px;">N. ${ddtNum} del ${ddtDate}</div>
+            <div style="font-size:.88rem; color:#475569;">Rif. Ordine cliente: ${ord.number}</div>
+          </div>
+          <div style="text-align:right;">
+            <strong style="font-size:1.1rem; display:block;">PASCAL MILANO</strong>
+            <small style="color:#475569;">Cosmesi Professionale</small>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+          <div style="border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <strong style="display:block; margin-bottom:6px; color:#475569; font-size:.8rem; text-transform:uppercase;">Destinatario Merce:</strong>
+            <div style="font-size:1.1rem; font-weight:800;">${ord.customer_name}</div>
+          </div>
+          <div style="border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+            <strong style="display:block; margin-bottom:6px; color:#475569; font-size:.8rem; text-transform:uppercase;">Dati Spedizione:</strong>
+            <div><strong>Vettore:</strong> ${ord.carrier || 'Corriere incaricato'}</div>
+            <div><strong>Tracking:</strong> ${ord.tracking_number || 'In emissione'}</div>
+            <div><strong>Data Spedizione:</strong> ${ord.shipping_date || ddtDate}</div>
+          </div>
+        </div>
+
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th style="width:50px;">Pos.</th>
+              <th>Descrizione Beni</th>
+              <th style="width:70px;" class="center">U.M.</th>
+              <th style="width:80px;" class="center">Quantità</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Merce come da ordine commerciale ${ord.number}</td>
+              <td class="center">PZ</td>
+              <td class="center">Conf.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-top:40px; padding-top:20px; border-top:1px solid #cbd5e1; font-size:.82rem;">
+          <div>Firma Conducente:<br><br>______________________</div>
+          <div>Firma Vettore:<br><br>______________________</div>
+          <div>Firma Destinatario per ricevuta:<br><br>______________________</div>
+        </div>
+      `;
+      $('printModal').showModal();
+    }
+
+    loadOrders();
+  </script>
+</body>
+</html>
