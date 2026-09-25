@@ -1,5 +1,28 @@
 // Unified company and Google Sheets configuration
-window.companyConfig = window.companyConfig || {
+function getStoredConfig() {
+  try {
+    const raw = localStorage.getItem('companyConfig');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function deepMergeConfig(base, override) {
+  const result = { ...base };
+  for (const key of Object.keys(override || {})) {
+    if (override[key] && typeof override[key] === 'object' && !Array.isArray(override[key])) {
+      result[key] = deepMergeConfig(result[key] || {}, override[key]);
+    } else if (override[key] !== undefined && override[key] !== null) {
+      result[key] = override[key];
+    }
+  }
+  return result;
+}
+
+const defaultConfig = {
   company: {
     sheetName: "Dati_Azienda_e_Mandanti",
     spreadsheetId: "1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0",
@@ -35,35 +58,53 @@ window.companyConfig = window.companyConfig || {
   source: ""
 };
 
+// Immediate synchronous initialization from localStorage if available
+const storedInitial = getStoredConfig();
+window.companyConfig = deepMergeConfig(defaultConfig, storedInitial || {});
+
 async function loadCompanyConfig() {
+  const local = getStoredConfig();
+  // If localStorage has user-saved configuration, it is the primary authority
+  if (local && (local.source === 'Configurazione amministratore' || local.lastUpdate)) {
+    window.companyConfig = deepMergeConfig(defaultConfig, local);
+    // Sync to server in background so serverless functions know the custom IDs
+    try {
+      fetch('/api/config', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(window.companyConfig)
+      }).catch(() => {});
+    } catch (e) {}
+    return window.companyConfig;
+  }
+
+  // Fallback: try fetching from server (only when no local admin config exists)
   try {
     const res = await fetch('/api/config');
     if (res.ok) {
       const data = await res.json();
       if (data && data.config) {
-        window.companyConfig = { ...window.companyConfig, ...data.config };
-        try { localStorage.setItem('companyConfig', JSON.stringify(window.companyConfig)); } catch (e) {}
+        window.companyConfig = deepMergeConfig(defaultConfig, data.config);
+        // Only write to localStorage if there's no existing admin config
+        const existingLocal = getStoredConfig();
+        if (!existingLocal || (!existingLocal.source && !existingLocal.lastUpdate)) {
+          try { localStorage.setItem('companyConfig', JSON.stringify(window.companyConfig)); } catch (e) {}
+        }
         return window.companyConfig;
       }
     }
   } catch (e) {}
 
-  try {
-    const saved = localStorage.getItem('companyConfig');
-    if (saved) {
-      window.companyConfig = { ...window.companyConfig, ...JSON.parse(saved) };
-    }
-  } catch (e) {}
   return window.companyConfig;
 }
 
 async function saveCompanyConfig(cfg) {
-  window.companyConfig = {
-    ...window.companyConfig,
+  window.companyConfig = deepMergeConfig(window.companyConfig || defaultConfig, {
     ...cfg,
     lastUpdate: new Date().toISOString(),
     source: 'Configurazione amministratore'
-  };
+  });
+
   try {
     localStorage.setItem('companyConfig', JSON.stringify(window.companyConfig));
   } catch (e) {}
@@ -75,5 +116,6 @@ async function saveCompanyConfig(cfg) {
       body: JSON.stringify(window.companyConfig)
     });
   } catch (e) {}
+
   return window.companyConfig;
 }

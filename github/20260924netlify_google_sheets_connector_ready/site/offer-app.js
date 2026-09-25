@@ -113,16 +113,6 @@ async function loadData() {
   // Step 2: If online, fetch live data from server endpoints
   if (navigator.onLine) {
     try {
-      // Step 2a: Sync admin config to server BEFORE fetching data,
-      // so that after a cold start the server knows which spreadsheet IDs to use
-      if (window.companyConfig) {
-        await fetch('/api/config', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(window.companyConfig)
-        }).catch(() => {});
-      }
-
       const [compRes, agRes, custRes, prodRes] = await Promise.all([
         fetch('/api/company', { headers: { accept: 'application/json' }, cache: 'no-store' }),
         fetch('/api/agents', { headers: { accept: 'application/json' }, cache: 'no-store' }),

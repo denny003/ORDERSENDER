@@ -1,0 +1,11 @@
+{
+  "name": "offerte-agenti-netlify-pilota",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check netlify/functions/api.mjs && node scripts/check-package.mjs"
+  },
+  "engines": {"node": ">=20"}
+}
+

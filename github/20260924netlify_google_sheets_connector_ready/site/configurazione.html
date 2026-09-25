@@ -67,7 +67,7 @@
         <p>Gestione unificata delle origini dati cloud e del registro centrale offerte/ordini</p>
       </div>
       <div>
-        <button type="button" id="btnCheckNow" class="btn secondary">🔄 Verifica connessioni</button>
+        <button id="btnCheckNow" class="btn secondary">🔄 Verifica connessioni</button>
       </div>
     </div>
 
@@ -77,7 +77,7 @@
         <h2><span>⚡</span> CONTROLLO CONNESSIONI</h2>
         <div style="display:flex; gap:8px; align-items:center;">
           <span id="diagLastRun" class="diag-badge">In attesa di verifica…</span>
-          <button type="button" id="btnDiagRefresh" class="btn secondary" style="padding:6px 12px; font-size:.8rem; background:rgba(255,255,255,.15); color:#fff; border:0;">Aggiorna</button>
+          <button id="btnDiagRefresh" class="btn secondary" style="padding:6px 12px; font-size:.8rem; background:rgba(255,255,255,.15); color:#fff; border:0;">Aggiorna</button>
         </div>
       </div>
 
@@ -274,8 +274,8 @@
     </section>
 
     <div class="actions-bar">
-      <button type="button" id="btnReset" class="btn secondary">Ripristina valori iniziali</button>
-      <button type="button" id="btnSave" class="btn primary btn-green">💾 Salva configurazione</button>
+      <button id="btnReset" class="btn secondary">Ripristina valori iniziali</button>
+      <button id="btnSave" class="btn primary btn-green">💾 Salva configurazione</button>
     </div>
   </main>
 
@@ -292,42 +292,32 @@
     };
 
     function populateForm(cfg) {
-      if (!cfg) return;
-      const activeEl = document.activeElement;
-      const setVal = (id, val) => {
-        const el = $(id);
-        if (!el) return;
-        // Never overwrite an input that the user is actively focused on or editing
-        if (el === activeEl) return;
-        if (val !== undefined && val !== null) el.value = val;
-      };
-
       // Azienda
-      setVal('companySheetName', cfg.company?.sheetName || 'Dati_Azienda_e_Mandanti');
-      setVal('companySpreadsheetId', cfg.company?.spreadsheetId || '');
-      setVal('companyTab', cfg.company?.tab || 'Dati azienda');
+      $('companySheetName').value = cfg.company?.sheetName || 'Dati_Azienda_e_Mandanti';
+      $('companySpreadsheetId').value = cfg.company?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('companyTab').value = cfg.company?.tab || 'Dati azienda';
 
       // Agenti
-      setVal('agentsFileName', cfg.agents?.fileName || 'Anagrafica_Agenti');
-      setVal('agentsSpreadsheetId', cfg.agents?.spreadsheetId || '');
-      setVal('agentsTab', cfg.agents?.tab || 'Agenti');
+      $('agentsFileName').value = cfg.agents?.fileName || 'Anagrafica_Agenti';
+      $('agentsSpreadsheetId').value = cfg.agents?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('agentsTab').value = cfg.agents?.tab || 'Agenti';
 
       // Clienti
-      setVal('customersFileName', cfg.customers?.fileName || 'clienti');
-      setVal('customersSpreadsheetId', cfg.customers?.spreadsheetId || '');
-      setVal('customersTab', cfg.customers?.tab || 'clienti');
+      $('customersFileName').value = cfg.customers?.fileName || 'clienti';
+      $('customersSpreadsheetId').value = cfg.customers?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('customersTab').value = cfg.customers?.tab || 'clienti';
 
       // Articoli
-      setVal('productsFileName', cfg.products?.fileName || 'Articoli');
-      setVal('productsSpreadsheetId', cfg.products?.spreadsheetId || '');
-      setVal('productsTab', cfg.products?.tab || 'q_listino_prezzi_catalogo');
+      $('productsFileName').value = cfg.products?.fileName || 'Articoli';
+      $('productsSpreadsheetId').value = cfg.products?.spreadsheetId || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0';
+      $('productsTab').value = cfg.products?.tab || 'q_listino_prezzi_catalogo';
 
       // Repository
-      setVal('repositoryFolder', cfg.repository?.folder || 'Repository');
-      setVal('registerFileName', cfg.repository?.fileName || 'Registro offerte e ordini');
-      setVal('registerSpreadsheetId', cfg.repository?.spreadsheetId || '');
-      setVal('registerTabOffers', cfg.repository?.tabOffers || 'Offerte');
-      setVal('registerTabOrders', cfg.repository?.tabOrders || 'Ordini');
+      $('repositoryFolder').value = cfg.repository?.folder || 'Repository';
+      $('registerFileName').value = cfg.repository?.fileName || 'Registro offerte e ordini';
+      $('registerSpreadsheetId').value = cfg.repository?.spreadsheetId || '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4';
+      $('registerTabOffers').value = cfg.repository?.tabOffers || 'Offerte';
+      $('registerTabOrders').value = cfg.repository?.tabOrders || 'Ordini';
     }
 
     function readForm() {
@@ -361,26 +351,6 @@
         }
       };
     }
-
-    // Auto-persist in localStorage immediately on keystroke/change so IDs are NEVER lost
-    document.querySelectorAll('.field input').forEach(input => {
-      input.addEventListener('input', () => {
-        const formCfg = readForm();
-        try {
-          const current = JSON.parse(localStorage.getItem('companyConfig') || '{}');
-          const merged = {
-            ...current,
-            ...formCfg,
-            lastUpdate: new Date().toISOString(),
-            source: 'Configurazione amministratore'
-          };
-          localStorage.setItem('companyConfig', JSON.stringify(merged));
-          if (window.companyConfig) {
-            window.companyConfig = { ...window.companyConfig, ...merged };
-          }
-        } catch (e) {}
-      });
-    });
 
     async function checkDiagnostics() {
       $('diagLastRun').textContent = 'Verifica in corso…';
@@ -444,66 +414,33 @@
       $(detailsId).title = item.message || '';
     }
 
-    // Save button
     $('btnSave').onclick = async () => {
       const cfg = readForm();
       await saveCompanyConfig(cfg);
       toast('Configurazione salvata con successo');
-      await checkDiagnostics();
+      checkDiagnostics();
     };
 
-    // "Verifica connessioni" button: Auto-saves whatever is in the form first, then checks
-    $('btnCheckNow').onclick = async () => {
-      const cfg = readForm();
-      await saveCompanyConfig(cfg);
-      await checkDiagnostics();
-    };
-
-    // "Aggiorna" button: Also auto-saves form first, then checks
-    $('btnDiagRefresh').onclick = async () => {
-      const cfg = readForm();
-      await saveCompanyConfig(cfg);
-      await checkDiagnostics();
-    };
+    $('btnCheckNow').onclick = checkDiagnostics;
+    $('btnDiagRefresh').onclick = checkDiagnostics;
 
     $('btnReset').onclick = () => {
       if (confirm('Vuoi ripristinare i valori predefiniti per tutti i fogli?')) {
-        const defaults = {
+        populateForm({
           company: { sheetName: 'Dati_Azienda_e_Mandanti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'Dati azienda' },
           agents: { fileName: 'Anagrafica_Agenti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'Agenti' },
           customers: { fileName: 'clienti', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'clienti' },
           products: { fileName: 'Articoli', spreadsheetId: '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0', tab: 'q_listino_prezzi_catalogo' },
           repository: { folder: 'Repository', fileName: 'Registro offerte e ordini', spreadsheetId: '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4', tabOffers: 'Offerte', tabOrders: 'Ordini' }
-        };
-        populateForm(defaults);
-        saveCompanyConfig(defaults);
+        });
         toast('Valori predefiniti ripristinati');
-        checkDiagnostics();
       }
     };
 
-    // Single authoritative population on page load — never double-write.
-    // If localStorage already has admin-saved config, use it directly
-    // and skip the server fetch to avoid cold-start defaults overwriting.
-    (async () => {
-      const stored = getStoredConfig();
-      let cfg;
-      if (stored && (stored.source === 'Configurazione amministratore' || stored.lastUpdate)) {
-        // localStorage is authoritative — use it, sync to server silently
-        cfg = window.companyConfig || deepMergeConfig(defaultConfig, stored);
-        window.companyConfig = cfg;
-        fetch('/api/config', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(cfg)
-        }).catch(() => {});
-      } else {
-        // No admin-saved config yet — load from server or defaults
-        cfg = await loadCompanyConfig();
-      }
+    loadCompanyConfig().then(cfg => {
       populateForm(cfg);
       checkDiagnostics();
-    })();
+    });
   </script>
 </body>
 </html>
