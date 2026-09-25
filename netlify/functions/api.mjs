@@ -72,32 +72,40 @@ function normalizeAgentId(code) {
   return str;
 }
 
+const cleanEnvId = (val, oldPatterns = ['1mnW', '1N6ZcGa']) => {
+  if (!val) return '';
+  for (const p of oldPatterns) {
+    if (val.includes(p)) return '';
+  }
+  return val;
+};
+
 // In-memory runtime configuration with sensible defaults
 let runtimeConfig = {
   company: {
     sheetName: 'Dati_Azienda_e_Mandanti',
-    spreadsheetId: process.env.COMPANY_SPREADSHEET_ID || '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M',
+    spreadsheetId: cleanEnvId(process.env.COMPANY_SPREADSHEET_ID) || '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M',
     tab: 'Dati azienda'
   },
   agents: {
     fileName: 'Anagrafica_Agenti',
-    spreadsheetId: process.env.AGENTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU',
+    spreadsheetId: cleanEnvId(process.env.AGENTS_SPREADSHEET_ID) || '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU',
     tab: 'Agenti'
   },
   customers: {
     fileName: 'clienti',
-    spreadsheetId: process.env.CUSTOMERS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8',
+    spreadsheetId: cleanEnvId(process.env.CUSTOMERS_SPREADSHEET_ID) || '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8',
     tab: 'clienti'
   },
   products: {
     fileName: 'Articoli',
-    spreadsheetId: process.env.PRODUCTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE',
+    spreadsheetId: cleanEnvId(process.env.PRODUCTS_SPREADSHEET_ID) || '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE',
     tab: 'q_listino_prezzi_catalogo'
   },
   repository: {
     folder: 'Repository',
     fileName: 'Registro offerte e ordini',
-    spreadsheetId: process.env.REGISTER_SPREADSHEET_ID || process.env.REPOSITORY_SPREADSHEET_ID || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc',
+    spreadsheetId: cleanEnvId(process.env.REGISTER_SPREADSHEET_ID) || cleanEnvId(process.env.REPOSITORY_SPREADSHEET_ID) || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc',
     tabOffers: 'Offerte',
     tabOrders: 'Ordini'
   },
