@@ -21,7 +21,7 @@ function users() {
     if (list.length) return list;
   } catch {}
   return [
-    { username: 'agente01', password: 'cambiare-password', name: 'Federico Micozzi', role: 'agent', agentCode: 'AG01' },
+    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' },
     { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' }
   ];
 }
@@ -76,28 +76,28 @@ function normalizeAgentId(code) {
 let runtimeConfig = {
   company: {
     sheetName: 'Dati_Azienda_e_Mandanti',
-    spreadsheetId: process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: process.env.COMPANY_SPREADSHEET_ID || '1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M',
     tab: 'Dati azienda'
   },
   agents: {
     fileName: 'Anagrafica_Agenti',
-    spreadsheetId: process.env.AGENTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: process.env.AGENTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU',
     tab: 'Agenti'
   },
   customers: {
     fileName: 'clienti',
-    spreadsheetId: process.env.CUSTOMERS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: process.env.CUSTOMERS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8',
     tab: 'clienti'
   },
   products: {
     fileName: 'Articoli',
-    spreadsheetId: process.env.PRODUCTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0',
+    spreadsheetId: process.env.PRODUCTS_SPREADSHEET_ID || process.env.COMPANY_SPREADSHEET_ID || '17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE',
     tab: 'q_listino_prezzi_catalogo'
   },
   repository: {
     folder: 'Repository',
     fileName: 'Registro offerte e ordini',
-    spreadsheetId: process.env.REGISTER_SPREADSHEET_ID || '1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4',
+    spreadsheetId: process.env.REGISTER_SPREADSHEET_ID || process.env.REPOSITORY_SPREADSHEET_ID || '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc',
     tabOffers: 'Offerte',
     tabOrders: 'Ordini'
   },
@@ -198,16 +198,16 @@ const companyKeys = {
 };
 
 const knownAgentNames = {
-  AG001: 'Federico Micozzi',
-  AG002: 'Francesco Pontrelli',
-  AG003: 'Savino De Palma',
-  AG004: 'Giorgio Fabris',
-  AG005: 'Francesco Poli',
-  AG006: 'Francesco Gelsumini',
-  AG007: 'Andrea Tirella',
-  AG008: 'Vincenzo Antonio Richetta',
-  AG009: 'Daniele Rigamonti',
-  AG010: 'Maurizio Maltinti',
+  AG001: 'Tina Cucci',
+  AG002: 'David Alfano',
+  AG003: 'Bianca Narducci',
+  AG004: 'Loredana Andreoli',
+  AG005: 'Nunzio Sorce',
+  AG006: 'Enzo Nicastro',
+  AG007: 'Linda de gavi',
+  AG008: 'Pietro Vivenza',
+  AG009: 'Paolo Infante',
+  AG010: 'Daniele sama’',
   AG011: 'Andrea Rygiewicz'
 };
 
@@ -421,20 +421,22 @@ async function fetchProductsData(customId, customTab) {
     if (rows.length > 1) {
       const header = rows[0].map(c => String(c).toLowerCase().trim());
       const col = name => header.findIndex(h => h.includes(name));
-      const caIdIdx = col('caid');
-      const caIdx = col('ca') >= 0 ? col('ca') : col('codice');
-      const desIdx = col('desart') >= 0 ? col('desart') : col('descrizione');
-      const brandIdx = col('marca');
-      const sectorIdx = col('jsettore') >= 0 ? col('jsettore') : col('settore');
+      // Exact match to avoid 'ca' matching 'caid', 'catalogo', 'marca' etc.
+      const colExact = name => header.findIndex(h => h === name);
+      const caIdIdx = colExact('caid') >= 0 ? colExact('caid') : col('caid');
+      const caIdx = colExact('ca') >= 0 ? colExact('ca') : col('codice');
+      const desIdx = colExact('desart') >= 0 ? colExact('desart') : col('descrizione');
+      const brandIdx = colExact('marca') >= 0 ? colExact('marca') : col('marca');
+      const sectorIdx = colExact('jsettore') >= 0 ? colExact('jsettore') : col('settore');
       const macroIdx = col('jmacrofamiglia');
       const famIdx = col('jfamiglia');
       const groupIdx = col('q_ubi_art_destab');
       const priceIdx = col('qt_prezzo_pz') >= 0 ? col('qt_prezzo_pz') : col('prezzo');
-      const stockIdx = col('qtesi') >= 0 ? col('qtesi') : col('disp');
+      const stockIdx = colExact('qtesi') >= 0 ? colExact('qtesi') : col('disp');
       const imageIdx = col('url-immagine') >= 0 ? col('url-immagine') : col('disegno');
-      const disegnoIdx = col('disegno');
+      const disegnoIdx = colExact('disegno') >= 0 ? colExact('disegno') : col('disegno');
       const discCodeIdx = col('jscontoven');
-      const maxDiscIdx = col('screale') >= 0 ? col('screale') : col('sconto');
+      const maxDiscIdx = colExact('screale') >= 0 ? colExact('screale') : col('sconto');
 
       const products = [];
       for (let i = 1; i < rows.length; i++) {
@@ -1064,30 +1066,48 @@ export default async (request, context) => {
     }
 
     // Public / App data endpoints (with offline fallback & live Google Sheets)
+    // Each endpoint accepts ?id=SPREADSHEET_ID&tab=TAB_NAME query params
+    // to avoid dependency on server-side runtimeConfig (stateless functions!)
     if (path === 'company' && request.method === 'GET') {
-      const compRes = await fetchCompanyData();
+      const compRes = await fetchCompanyData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       return json(200, compRes);
     }
 
     if (path === 'settings' && request.method === 'GET') {
-      const compRes = await fetchCompanyData();
+      const compRes = await fetchCompanyData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       const user = session(request);
       return json(200, { settings: { company_profile: compRes.company }, company: compRes.company, canEdit: user?.role === 'admin' });
     }
 
     if (path === 'agents' && request.method === 'GET') {
-      const agRes = await fetchAgentsData();
+      const agRes = await fetchAgentsData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       return json(200, agRes);
     }
 
     if (path === 'customers' && request.method === 'GET') {
       const user = session(request);
-      const clRes = await fetchCustomersData(undefined, undefined, user);
+      const clRes = await fetchCustomersData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined,
+        user
+      );
       return json(200, clRes);
     }
 
     if (path === 'products' && request.method === 'GET') {
-      const prRes = await fetchProductsData();
+      const prRes = await fetchProductsData(
+        url.searchParams.get('id') || undefined,
+        url.searchParams.get('tab') || undefined
+      );
       return json(200, prRes);
     }
 

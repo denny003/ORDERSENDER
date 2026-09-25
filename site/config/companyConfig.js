@@ -25,28 +25,28 @@ function deepMergeConfig(base, override) {
 const defaultConfig = {
   company: {
     sheetName: "Dati_Azienda_e_Mandanti",
-    spreadsheetId: "1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0",
+    spreadsheetId: "1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M",
     tab: "Dati azienda"
   },
   agents: {
     fileName: "Anagrafica_Agenti",
-    spreadsheetId: "1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0",
+    spreadsheetId: "13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU",
     tab: "Agenti"
   },
   customers: {
     fileName: "clienti",
-    spreadsheetId: "1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0",
+    spreadsheetId: "1rkFDBTCJD3JlrcvyOPGHjYTJDkjuMc24dJ7l6EqQ6I8",
     tab: "clienti"
   },
   products: {
     fileName: "Articoli",
-    spreadsheetId: "1mnW70V3qcnc5nOeIMeLb5tANSl8VeDBi9Awn4H9qSJ0",
+    spreadsheetId: "17ErnowHZDqA3WDTN5auHkyTBPVn4MqkI8BFkiqkDhmE",
     tab: "q_listino_prezzi_catalogo"
   },
   repository: {
     folder: "Repository",
     fileName: "Registro offerte e ordini",
-    spreadsheetId: "1N6ZcGa2r6Qc4KzkIIUg7cgfhkMajMnippGg6U_fx2Z4",
+    spreadsheetId: "1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnlVlenn-Fjc",
     tabOffers: "Offerte",
     tabOrders: "Ordini"
   },
