@@ -46,9 +46,60 @@ const effectiveDiscount = ds => 100 * (1 - ds.reduce((m, d) => m * (1 - (Number(
 const lineNet = item => item.product.price * item.qty * item.discounts.reduce((m, d) => m * (1 - d / 100), 1) * (1 + item.markup / 100);
 const discountLabel = item => [...item.discounts.map(d => `${num.format(d)}%`), item.markup ? `+${num.format(item.markup)}% ric.` : null].filter(Boolean).join(' + ');
 
-const currentRole = () => $('roleSelect')?.value || (AGENTS[0]?.id || 'AG01');
+let currentUser = null;
+
+function normalizeAgentCode(val) {
+  if (!val) return '';
+  const s = String(val).trim().toUpperCase();
+  const m = s.match(/(?:AG|AGENTE)?\s*0*(\d+)/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return `AG${n < 10 ? '0' + n : n}`;
+  }
+  return s;
+}
+
+async function checkUserSession() {
+  try {
+    const res = await fetch('/api/session', { headers: { accept: 'application/json' }, cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.user) {
+        currentUser = data.user;
+        try { localStorage.setItem('oa_session_user', JSON.stringify(currentUser)); } catch {}
+        return currentUser;
+      }
+    }
+  } catch {}
+  try {
+    const cached = localStorage.getItem('oa_session_user');
+    if (cached) currentUser = JSON.parse(cached);
+  } catch {}
+  return currentUser;
+}
+
+const currentRole = () => {
+  if (currentUser && currentUser.role === 'agent') {
+    return normalizeAgentCode(currentUser.agentCode) || 'AG01';
+  }
+  return $('roleSelect')?.value || (AGENTS[0]?.id || 'AG01');
+};
+
 const currentAgentId = () => currentRole().replace('AREA_', '');
-const currentAgent = () => agentById[currentAgentId()] || AGENTS[0] || { id: 'AG01', name: 'Agente', role: 'Agente', discountLimit: 40 };
+const currentAgent = () => {
+  const agId = currentAgentId();
+  if (agentById[agId]) return agentById[agId];
+  if (currentUser && currentUser.role === 'agent') {
+    return {
+      id: agId,
+      name: currentUser.name || 'Agente',
+      role: 'Agente',
+      discountLimit: 40
+    };
+  }
+  return AGENTS[0] || { id: 'AG01', name: 'Agente', role: 'Agente', discountLimit: 40 };
+};
+
 const maxAllowedDiscount = (product) => {
   const agLimit = currentAgent()?.discountLimit != null ? Number(currentAgent().discountLimit) : 40;
   const prodLimit = product.maxDiscount != null ? Number(product.maxDiscount) : 100;
@@ -248,7 +299,92 @@ function renderCompanyProfile() {
 }
 
 function roleOptions() {
-  const current = localStorage.getItem('offer-role') || (AGENTS[0]?.id || 'AG01');
+  const user = currentUser;
+  const userRole = user?.role || (user ? 'agent' : 'admin');
+  const userAgentCode = normalizeAgentCode(user?.agentCode || '');
+  const userSwitch = document.querySelector('.user-switch');
+
+  // 1. SE L'UTENTE È UN AGENTE: NASCONDE IL MENU E BLOCCA LA VISTA OPERATIVA SULL'AGENTE STESSO!
+  if (user && userRole === 'agent') {
+    let myAgent = AGENTS.find(a => normalizeAgentCode(a.id) === userAgentCode || normalizeAgentCode(a.code) === userAgentCode);
+    if (!myAgent && user.name) {
+      myAgent = AGENTS.find(a => (a.name || '').toLowerCase() === user.name.toLowerCase());
+    }
+    const myId = myAgent?.id || userAgentCode || 'AG01';
+    const myName = myAgent?.name || user.name || 'Agente';
+
+    $('roleSelect').innerHTML = `<option value="${myId}">${myId.replace('AG', 'Agente ')} · ${esc(myName)}</option>`;
+    $('roleSelect').value = myId;
+    $('roleSelect').style.display = 'none';
+
+    if (userSwitch) {
+      const label = userSwitch.querySelector('label');
+      if (label) label.style.display = 'none';
+      let badge = userSwitch.querySelector('.user-badge-fixed');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'user-badge-fixed';
+        userSwitch.appendChild(badge);
+      }
+      badge.innerHTML = `👤 <strong>${esc(myName)}</strong> (${myId.replace('AG', 'Agente ')})`;
+    }
+
+    localStorage.setItem('offer-role', myId);
+
+    if ($('assignedAgent')) {
+      $('assignedAgent').innerHTML = `<option value="${myId}">${myId.replace('AG', 'Agente ')} · ${esc(myName)}</option>`;
+      $('assignedAgent').value = myId;
+      $('assignedAgent').disabled = true;
+    }
+    return;
+  }
+
+  // 2. SE L'UTENTE È UN CAPO AREA: VEDE SOLO SE STESSO E GLI AGENTI ASSEGNATI
+  if (user && userRole === 'area_head') {
+    const myId = userAgentCode || 'AG01';
+    const myAgent = agentById[myId] || { id: myId, name: user.name || 'Capo area' };
+    const subAgentIds = hierarchy[myId] || [];
+
+    let html = `<option value="AREA_${myId}">Capo area · ${esc(myAgent.name)}</option>`;
+    html += `<option value="${myId}">${myId.replace('AG', 'Agente ')} · ${esc(myAgent.name)} (I miei clienti)</option>`;
+    subAgentIds.forEach(subId => {
+      const subAg = agentById[subId];
+      if (subAg) {
+        html += `<option value="${subAg.id}">${subAg.id.replace('AG', 'Agente ')} · ${esc(subAg.name)}</option>`;
+      }
+    });
+
+    $('roleSelect').innerHTML = html;
+    $('roleSelect').style.display = '';
+
+    if (userSwitch) {
+      const label = userSwitch.querySelector('label');
+      if (label) label.style.display = '';
+      const badge = userSwitch.querySelector('.user-badge-fixed');
+      if (badge) badge.remove();
+    }
+
+    const current = localStorage.getItem('offer-role');
+    if (current && [...$('roleSelect').options].some(o => o.value === current)) {
+      $('roleSelect').value = current;
+    } else {
+      $('roleSelect').value = `AREA_${myId}`;
+    }
+
+    if ($('assignedAgent')) {
+      $('assignedAgent').disabled = false;
+      let assignHtml = `<option value="${myId}">${myId.replace('AG', 'Agente ')} · ${esc(myAgent.name)}</option>`;
+      subAgentIds.forEach(subId => {
+        const subAg = agentById[subId];
+        if (subAg) assignHtml += `<option value="${subAg.id}">${subAg.id.replace('AG', 'Agente ')} · ${esc(subAg.name)}</option>`;
+      });
+      $('assignedAgent').innerHTML = assignHtml;
+    }
+    return;
+  }
+
+  // 3. SE L'UTENTE È AMMINISTRATORE: VEDE TUTTI I CLIENTI E PUÒ SELEZIONARE QUALSIASI AGENTE
+  const current = localStorage.getItem('offer-role') || 'ADMIN';
   const heads = AGENTS.filter(a => a.head || (hierarchy[a.id] && hierarchy[a.id].length > 0));
 
   let html = '<option value="ADMIN">Amministrazione · tutti i clienti</option>';
@@ -258,13 +394,25 @@ function roleOptions() {
   html += AGENTS.map(a => `<option value="${a.id}">${a.id.replace('AG', 'Agente ')} · ${esc(a.name)}</option>`).join('');
 
   $('roleSelect').innerHTML = html;
-  if ([...$('roleSelect').options].some(o => o.value === current)) {
-    $('roleSelect').value = current;
-  } else if (AGENTS[0]) {
-    $('roleSelect').value = AGENTS[0].id;
+  $('roleSelect').style.display = '';
+
+  if (userSwitch) {
+    const label = userSwitch.querySelector('label');
+    if (label) label.style.display = '';
+    const badge = userSwitch.querySelector('.user-badge-fixed');
+    if (badge) badge.remove();
   }
 
-  $('assignedAgent').innerHTML = AGENTS.map(a => `<option value="${a.id}">${a.id.replace('AG', 'Agente ')} · ${esc(a.name)}</option>`).join('');
+  if ([...$('roleSelect').options].some(o => o.value === current)) {
+    $('roleSelect').value = current;
+  } else {
+    $('roleSelect').value = 'ADMIN';
+  }
+
+  if ($('assignedAgent')) {
+    $('assignedAgent').disabled = false;
+    $('assignedAgent').innerHTML = AGENTS.map(a => `<option value="${a.id}">${a.id.replace('AG', 'Agente ')} · ${esc(a.name)}</option>`).join('');
+  }
 }
 
 function visibleAgentIds() {
@@ -279,7 +427,12 @@ function visibleAgentIds() {
 
 function visibleClients() {
   const allowed = visibleAgentIds();
-  return allowed ? clients.filter(c => allowed.has(c.agentId)) : clients;
+  if (!allowed) return clients;
+  return clients.filter(c => {
+    const agId = normalizeAgentCode(c.agentId);
+    const srcId = normalizeAgentCode(c.sourceAgent);
+    return allowed.has(c.agentId) || (agId && allowed.has(agId)) || (srcId && allowed.has(srcId));
+  });
 }
 
 function findClient(id) {
@@ -454,7 +607,8 @@ function updateRoleView() {
   const role = currentRole(), agent = currentAgent();
   localStorage.setItem('offer-role', role);
   $('agentIdentity').textContent = role === 'ADMIN' ? 'Amministrazione' : role.startsWith('AREA_') ? `Capo area · ${agent.name}` : `${agent.id.replace('AG', 'Agente ')} · ${agent.name}`;
-  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', role !== 'ADMIN'));
+  const isAdmin = currentUser?.role === 'admin' || (role === 'ADMIN' && !currentUser);
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
   renderCustomers();
   persistOffer();
   $('offerCode').textContent = offerNumber();
@@ -841,6 +995,7 @@ async function start() {
   $('syncLabel').textContent = 'Connessione a Google Sheets…';
 
   try {
+    await checkUserSession();
     await loadData();
     roleOptions();
     updateFilters();

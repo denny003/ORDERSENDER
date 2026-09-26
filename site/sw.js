@@ -1,4 +1,4 @@
-const CACHE = 'offerte-agenti-v23';
+const CACHE = 'offerte-agenti-v24';
 const ASSETS = [
   '/',
   '/index.html',
