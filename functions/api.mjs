@@ -69,7 +69,7 @@ function sessionCookie(user) {
 function normalizeAgentId(code) {
   if (!code) return '';
   const str = String(code).trim().toUpperCase();
-  const m = str.match(/^AG0*(\d+)$/);
+  const m = str.match(/^(?:AG|AGENTE)0*(\d+)$/);
   if (m) {
     const num = parseInt(m[1], 10);
     return `AG${num < 10 ? '0' + num : num}`;
