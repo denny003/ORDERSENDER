@@ -576,8 +576,9 @@
           <h1>Pipeline Ordini & Spedizioni</h1>
           <p>Avanzamento lavorazione: Ricezione → Approvazione → Picking Magazzino → Bolla/DDT → Fatturazione</p>
         </div>
-        <div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <button type="button" id="btnRefresh" class="btn secondary">🔄 Aggiorna dati</button>
+          <button type="button" id="btnClearTestOrders" class="btn secondary" style="color:#b91c1c; border-color:#fca5a5; font-weight:750;" title="Cancella ordini e offerte di prova da Google Drive">🗑️ Pulisci Dati di Prova</button>
         </div>
       </div>
 
@@ -1195,6 +1196,17 @@
         const haystack = `${ord.number} ${ord.customer_name} ${ord.agent_name} ${ord.ddt_number || ''} ${ord.carrier || ''}`.toLowerCase();
         return haystack.includes(term);
       });
+
+      if (!allOrders.length) {
+        $('ordersContainer').innerHTML = `
+          <div style="text-align:center; padding: 56px 20px; background:#fff; border-radius:14px; border:1px solid var(--line); color:var(--muted);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">📋✨</div>
+            <strong style="font-size:1.1rem; color:var(--navy); display:block; margin-bottom:6px;">Nessun ordine presente nel registro Google Drive</strong>
+            <p style="margin:0; font-size:.88rem; color:#64748b;">Il registro è azzerato e pronto per la fase operativa reale. I nuovi ordini inviati dagli agenti appariranno qui in tempo reale.</p>
+          </div>
+        `;
+        return;
+      }
 
       if (!filtered.length) {
         $('ordersContainer').innerHTML = `
@@ -2448,6 +2460,44 @@
         "'": '&#39;'
       }[m]));
     }
+
+    // Button events
+    $('btnRefresh').onclick = () => {
+      loadOrders();
+      toast('Dati aggiornati da Google Drive');
+    };
+
+    $('btnClearTestOrders').onclick = async () => {
+      if (!confirm('ATTENZIONE - AVVIO FASE OPERATIVA:\n\nVuoi cancellare tutte le offerte e gli ordini di test registrati nel foglio Google Drive?\n\nQuesta operazione pulirà l\'archivio mantenendo intatte le colonne e le intestazioni ufficiali per accogliere solo dati reali.')) {
+        return;
+      }
+      try {
+        $('btnClearTestOrders').disabled = true;
+        $('btnClearTestOrders').textContent = 'Pulizia in corso…';
+        const res = await fetch('/api/repository/clear-test-data', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'Errore durante la pulizia');
+        
+        // Pulizia cache locale del browser
+        localStorage.removeItem('oa_cached_practices');
+        localStorage.removeItem('offer-demo');
+        localStorage.removeItem('offer-outbox');
+        localStorage.removeItem('order-numbers');
+        localStorage.removeItem('offer-numbers');
+
+        toast('Registro Google Drive pulito con successo! Ordini e offerte di prova eliminati.');
+        await loadOrders();
+      } catch (err) {
+        alert('Errore pulizia: ' + err.message);
+      } finally {
+        $('btnClearTestOrders').disabled = false;
+        $('btnClearTestOrders').textContent = '🗑️ Pulisci Dati di Prova';
+      }
+    };
 
     // Initial page router based on hash
     if (window.location.hash === '#produzione') {

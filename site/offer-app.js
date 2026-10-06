@@ -230,14 +230,14 @@ async function loadData() {
 
       if (custRes.ok) {
         const d = await custRes.json();
-        if (d.ok !== false && d.customers && d.customers.length > 0) {
+        if (d.ok !== false && Array.isArray(d.customers)) {
           clients = d.customers;
         }
       }
 
       if (prodRes.ok) {
         const d = await prodRes.json();
-        if (d.ok !== false && d.products && d.products.length > 0) {
+        if (d.ok !== false && Array.isArray(d.products) && d.products.length > 0) {
           products = d.products;
         }
       }
@@ -256,25 +256,6 @@ async function loadData() {
     }
   }
 
-  // Step 3: Fallback to seed-data if cache was completely empty
-  if (!products.length || !clients.length || !AGENTS.length) {
-    try {
-      const res = await fetch('/seed-data.json');
-      if (res.ok) {
-        const seed = await res.json();
-        if (!products.length) products = seed.articles || [];
-        if (!clients.length) clients = seed.clients || [];
-        if (!AGENTS.length && seed.agents) {
-          AGENTS = seed.agents;
-          hierarchy = seed.hierarchy || hierarchy;
-        }
-        if (seed.company && !companyProfile.companyName) {
-          companyProfile = { ...companyProfile, ...seed.company };
-        }
-        dataMeta = seed.meta || dataMeta;
-      }
-    } catch (e) {}
-  }
 
   // Final indexing
   agentById = Object.fromEntries(AGENTS.map(a => [a.id, a]));
@@ -451,6 +432,12 @@ function customerData() {
 
 function renderCustomers(preferred = '') {
   const current = preferred || $('customerSelect').value, role = currentRole(), visible = visibleClients();
+  if (!visible.length) {
+    $('customerSelect').innerHTML = '<option value="">-- Nessun cliente registrato nel foglio Google Drive --</option>';
+    $('assignedAgent').disabled = role.startsWith('AG');
+    showCustomer();
+    return;
+  }
   $('customerSelect').innerHTML = '<option value="">Seleziona un cliente…</option>' + visible.map(c => `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(c.city)}${role === 'ADMIN' && c.agentId !== 'UNASSIGNED' ? ` · ${esc(agentById[c.agentId]?.name || c.sourceAgent)}` : ''}${role === 'ADMIN' && c.agentId === 'UNASSIGNED' ? ' · non assegnato' : ''}</option>`).join('');
   if ([...$('customerSelect').options].some(o => o.value === String(current))) $('customerSelect').value = String(current);
   const agentRole = role.startsWith('AG');
@@ -843,6 +830,10 @@ async function submitOffer() {
 
   try {
     await sendSubmission(payload);
+    localStorage.removeItem('offer-demo');
+    localStorage.removeItem('offer-editing-info');
+    localStorage.removeItem(documentType === 'order' ? 'order-numbers' : 'offer-numbers');
+    localStorage.removeItem('oa_cached_practices');
     toast(`${documentType === 'order' ? 'Ordine' : 'Offerta'} registrato con successo nel foglio Google`);
     setTimeout(() => location.href = '/', 900);
   } catch (error) {
@@ -1210,8 +1201,21 @@ async function start() {
 
   if (params.get('new') === '1' && !revParam) {
     localStorage.removeItem('offer-demo');
+    localStorage.removeItem('offer-editing-info');
     localStorage.removeItem(documentType === 'order' ? 'order-numbers' : 'offer-numbers');
   }
+
+  window.clearOperationalDraft = () => {
+    localStorage.removeItem('offer-demo');
+    localStorage.removeItem('offer-editing-info');
+    localStorage.removeItem(documentType === 'order' ? 'order-numbers' : 'offer-numbers');
+    items = [];
+    if ($('customerSelect')) $('customerSelect').value = '';
+    showCustomer();
+    renderOffer();
+    updateTotals();
+    toast('Bozza azzerata: pronto per un nuovo inserimento operativo');
+  };
 
   bindEvents();
   $('syncLabel').textContent = 'Connessione a Google Sheets…';

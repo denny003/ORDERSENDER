@@ -26,13 +26,17 @@ Link cartella condivisa: [Cartella Google Drive](https://drive.google.com/drive/
 
 ### Obbligatorie per Google Sheets API live
 - `SESSION_SECRET`: stringa segreta casuale di almeno 32 caratteri.
-- `PILOT_USERS`: elenco JSON degli utenti autorizzati. Esempio:
-  ```json
-  [
-    {"username":"agente01","password":"cambiare-password","name":"Federico Micozzi","role":"agent","agentCode":"AG01"},
-    {"username":"amministrazione","password":"cambiare-password","name":"Amministrazione","role":"admin","agentCode":"AG01"}
-  ]
-  ```
+### Gestione Accessi & Login
+1. **Autenticazione Live da Google Sheets (`Anagrafica_Agenti`)**:
+   - Gli agenti accedono direttamente con i dati del foglio Google Drive (`13HaTubf4_xVTtzkQUcYINkRtuSzLR2qGzJAiA-oAecU`).
+   - L'accesso legge la colonna `user` (es. `AG01`, `AG02`), la colonna `Pasword` (colonna S), e verifica la colonna `Attivo` (`Sì` / `No`).
+   - È possibile accedere sia con il codice `user` sia con la `Email accesso`.
+   - Modifiche a password o revoche (`Attivo: No`) hanno effetto immediato in tempo reale senza dover fare redeploy!
+
+2. **Accessi Amministrativi di Riserva (Fallback di Emergenza)**:
+   - **`amministrazione`**: account admin principale.
+   - **`administrator`**: password `Lisa4882` (ruolo: `admin`), sempre attivo come salvagente amministrativo indipendente da Google Sheets.
+   - Opzionale: `PILOT_USERS` (elenco JSON per eventuali override aggiuntivi in Netlify).
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: e-mail dell'account di servizio Google (es. `xxx@xxx.iam.gserviceaccount.com`).
 - `GOOGLE_PRIVATE_KEY`: chiave privata RSA completa (`-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----`).
 

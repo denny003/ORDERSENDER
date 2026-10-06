@@ -322,6 +322,24 @@
       </div>
     </section>
 
+    <!-- SEZIONE FASE OPERATIVA & RESET DATI DI PROVA -->
+    <section class="section-card" style="border: 2px solid #38bdf8; background: #f0f9ff;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+        <div style="max-width: 650px;">
+          <h3 style="color:#0369a1; margin:0 0 6px;">🚀 Avvio Fase Operativa (Google Drive Live)</h3>
+          <p style="margin:0 0 8px; color:#334155; font-size:.88rem; line-height:1.45;">
+            Tutti i dati visualizzati dal sistema (listini, anagrafica clienti, agenti, magazzino e registro ordini) sono configurati per provenire <strong>esclusivamente dalla cartella Google Drive ufficiale</strong>.
+          </p>
+          <p style="margin:0; color:#64748b; font-size:.82rem;">
+            Per iniziare a lavorare solo con documenti veri, usa il pulsante a fianco per cancellare tutte le offerte e gli ordini di test registrati finora. Le intestazioni e le colonne dei fogli Google rimarranno intatte.
+          </p>
+        </div>
+        <button type="button" id="btnClearTestRepo" class="btn secondary" style="background:#fff; color:#b91c1c; border-color:#fca5a5; font-weight:750; white-space:nowrap;">
+          🗑️ Cancella Offerte e Ordini di Prova
+        </button>
+      </div>
+    </section>
+
     <div class="actions-bar">
       <button type="button" id="btnReset" class="btn secondary">Ripristina valori iniziali</button>
       <button type="button" id="btnSave" class="btn primary btn-green">💾 Salva configurazione</button>
@@ -623,6 +641,37 @@
         await saveCompanyConfig(defaults);
         toast('Valori e ID ufficiali ripristinati');
         checkDiagnostics();
+      }
+    };
+
+    $('btnClearTestRepo').onclick = async () => {
+      if (!confirm('ATTENZIONE - AVVIO FASE OPERATIVA:\n\nVuoi cancellare tutte le offerte e gli ordini di test dal registro Google Drive?\n\nQuesta operazione lascerà intatte le colonne e le intestazioni ufficiali ma cancellerà tutte le righe di prova per consentire una ripartenza pulita.')) {
+        return;
+      }
+      try {
+        $('btnClearTestRepo').disabled = true;
+        $('btnClearTestRepo').textContent = 'Pulizia in corso…';
+        const res = await fetch('/api/repository/clear-test-data', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'Errore durante la pulizia');
+
+        localStorage.removeItem('oa_cached_practices');
+        localStorage.removeItem('offer-demo');
+        localStorage.removeItem('offer-outbox');
+        localStorage.removeItem('order-numbers');
+        localStorage.removeItem('offer-numbers');
+
+        toast('Registro Google Drive pulito con successo! Ordini e offerte di prova eliminati.');
+        checkDiagnostics();
+      } catch (err) {
+        alert('Errore pulizia: ' + err.message);
+      } finally {
+        $('btnClearTestRepo').disabled = false;
+        $('btnClearTestRepo').textContent = '🗑️ Cancella Offerte e Ordini di Prova';
       }
     };
 

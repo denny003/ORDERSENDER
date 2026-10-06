@@ -16,14 +16,19 @@ const secret = () => process.env.SESSION_SECRET || 'secret-key-at-least-32-chara
 const sign = v => crypto.createHmac('sha256', secret()).update(v).digest('base64url');
 
 function users() {
+  const defaults = [
+    { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' },
+    { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' },
+    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' }
+  ];
   try {
     const list = JSON.parse(process.env.PILOT_USERS || '[]');
-    if (list.length) return list;
+    if (Array.isArray(list) && list.length) {
+      const hasAdmin = list.some(u => String(u.username || '').toLowerCase() === 'administrator');
+      return hasAdmin ? list : [...list, { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' }];
+    }
   } catch {}
-  return [
-    { username: 'agente01', password: 'cambiare-password', name: 'Federico Micozzi', role: 'agent', agentCode: 'AG01' },
-    { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' }
-  ];
+  return defaults;
 }
 
 function cookie(request) {

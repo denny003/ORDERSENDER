@@ -697,10 +697,13 @@
             <span>📄</span> Registro pratiche
             <span id="rowsCount" class="counter-badge">0</span>
           </h2>
-          <div class="tabs-group">
-            <button class="tab-btn active" data-filter="all">Tutte</button>
-            <button class="tab-btn" data-filter="offer">Offerte</button>
-            <button class="tab-btn" data-filter="order">Ordini</button>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div class="tabs-group">
+              <button class="tab-btn active" data-filter="all">Tutte</button>
+              <button class="tab-btn" data-filter="offer">Offerte</button>
+              <button class="tab-btn" data-filter="order">Ordini</button>
+            </div>
+            <button id="adminClearRepoBtn" class="btn-sub hidden" style="padding:6px 10px; font-size:.78rem; color:#b91c1c; border-color:#fca5a5; font-weight:700;" title="Cancella offerte e ordini di prova dal registro Google Drive">🗑️ Pulisci prove</button>
           </div>
         </div>
 
@@ -827,6 +830,17 @@
       });
 
       $('rowsCount').textContent = filtered.length;
+
+      if (!allPractices.length) {
+        $('rows').innerHTML = `
+          <div style="text-align:center; padding: 48px 16px; color: var(--muted);">
+            <div style="font-size:2.5rem; margin-bottom:10px;">📂✨</div>
+            <strong style="color:var(--navy); font-size:1.05rem; display:block; margin-bottom:6px;">Registro pratiche vuoto (Fase Operativa Attiva)</strong>
+            <p style="font-size:.85rem; margin:0; color:#64748b;">Nessuna offerta o ordine di prova presente su Google Drive. Il sistema è pronto per registrare le nuove pratiche reali.</p>
+          </div>
+        `;
+        return;
+      }
 
       if (!filtered.length) {
         $('rows').innerHTML = `
@@ -1143,7 +1157,31 @@
         if ($('adminOrdersTop')) $('adminOrdersTop').classList.remove('hidden');
         if ($('adminProdBtn')) $('adminProdBtn').classList.remove('hidden');
         if ($('adminProdTop')) $('adminProdTop').classList.remove('hidden');
+        if ($('adminClearRepoBtn')) $('adminClearRepoBtn').classList.remove('hidden');
       }
+
+      $('adminClearRepoBtn').onclick = async () => {
+        if (!confirm('ATTENZIONE - AVVIO FASE OPERATIVA:\n\nVuoi cancellare tutte le offerte e gli ordini di test dal registro Google Drive?\n\nQuesta operazione lascerà intatte le colonne e le intestazioni ma eliminerà tutte le righe di prova.')) {
+          return;
+        }
+        try {
+          $('adminClearRepoBtn').disabled = true;
+          $('adminClearRepoBtn').textContent = 'Pulizia…';
+          await api('repository/clear-test-data', { method: 'POST', body: '{}' });
+          localStorage.removeItem('oa_cached_practices');
+          localStorage.removeItem('offer-demo');
+          localStorage.removeItem('offer-outbox');
+          localStorage.removeItem('order-numbers');
+          localStorage.removeItem('offer-numbers');
+          alert('Registro Google Drive pulito con successo! Ordini e offerte di prova rimossi.');
+          await load();
+        } catch (err) {
+          alert('Errore pulizia: ' + err.message);
+        } finally {
+          $('adminClearRepoBtn').disabled = false;
+          $('adminClearRepoBtn').textContent = '🗑️ Pulisci prove';
+        }
+      };
 
       // 2. Load practices from API or fallback to cached
       try {
@@ -1162,16 +1200,21 @@
         ].sort((x, y) => String(y.updated_at || y.submitted_at || '').localeCompare(String(x.updated_at || x.submitted_at || '')));
 
         localStorage.setItem('oa_cached_practices', JSON.stringify(allPractices));
-        $('statusDot').style.background = '#34d399';
-        $('offlineNotice').classList.add('hidden');
+        const sDot = $('statusDot');
+        if (sDot) sDot.style.background = '#34d399';
+        const offNot = $('offlineNotice');
+        if (offNot) offNot.classList.add('hidden');
       } catch (err) {
         console.warn('Errore lettura Google Sheets, recupero cache locale:', err.message);
-        $('statusDot').style.background = '#fbbf24';
+        const sDot = $('statusDot');
+        if (sDot) sDot.style.background = '#fbbf24';
         const cached = localStorage.getItem('oa_cached_practices');
         if (cached) {
           allPractices = JSON.parse(cached);
-          $('offlineNoticeText').textContent = 'Connessione a Google Sheets non disponibile al momento. Visualizzazione dati locali.';
-          $('offlineNotice').classList.remove('hidden');
+          const notText = $('offlineNoticeText');
+          if (notText) notText.textContent = 'Connessione a Google Sheets non disponibile al momento. Visualizzazione dati locali.';
+          const offNot = $('offlineNotice');
+          if (offNot) offNot.classList.remove('hidden');
         } else {
           $('rows').innerHTML = `
             <div style="text-align:center; padding: 24px; color: #c5221f;">
@@ -1184,6 +1227,11 @@
 
       renderList();
     }
+
+    $('refresh').onclick = async () => {
+      localStorage.removeItem('oa_cached_practices');
+      await load();
+    };
 
     $('loginForm').onsubmit = async e => {
       e.preventDefault();

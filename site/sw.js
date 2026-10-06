@@ -1,4 +1,4 @@
-const CACHE = 'offerte-agenti-v32';
+const CACHE = 'offerte-agenti-v34';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,7 +15,6 @@ const ASSETS = [
   '/dense.css',
   '/roles.css',
   '/data.css',
-  '/seed-data.json',
   '/manifest.webmanifest',
   '/favicon.svg'
 ];

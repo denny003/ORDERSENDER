@@ -377,6 +377,7 @@
         return 'v-programmata';
       };
 
+      $('visitsContainer').innerHTML = filtered.map(v => {
         const cleanMobile = (v.mobile || '').replace(/\D/g, '');
         const waLink = cleanMobile ? `https://wa.me/39${cleanMobile.startsWith('39') ? cleanMobile.slice(2) : cleanMobile}` : '';
         return `
@@ -402,7 +403,7 @@
             <a href="/offerta?new=1&client=${encodeURIComponent(v.clientName)}" class="btn primary" style="padding:6px 12px; font-size:.82rem; text-decoration:none;">💼 Crea Offerta</a>
           </div>
         </div>
-      `).join('');
+      `; }).join('');
     }
 
     function renderProspects() {

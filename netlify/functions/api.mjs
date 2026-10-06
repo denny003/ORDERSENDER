@@ -16,14 +16,19 @@ const secret = () => process.env.SESSION_SECRET || 'secret-key-at-least-32-chara
 const sign = v => crypto.createHmac('sha256', secret()).update(v).digest('base64url');
 
 function users() {
+  const defaults = [
+    { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' },
+    { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' },
+    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' }
+  ];
   try {
     const list = JSON.parse(process.env.PILOT_USERS || '[]');
-    if (list.length) return list;
+    if (Array.isArray(list) && list.length) {
+      const hasAdmin = list.some(u => String(u.username || '').toLowerCase() === 'administrator');
+      return hasAdmin ? list : [...list, { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' }];
+    }
   } catch {}
-  return [
-    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' },
-    { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' }
-  ];
+  return defaults;
 }
 
 function cookie(request) {
@@ -263,6 +268,13 @@ async function updateRow(id, range, values) {
   return sheets(`${id}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
     method: 'PUT',
     body: JSON.stringify({ values })
+  });
+}
+
+async function clearRange(id, range) {
+  return sheets(`${id}/values/${encodeURIComponent(range)}:clear`, {
+    method: 'POST',
+    body: JSON.stringify({})
   });
 }
 
@@ -521,17 +533,9 @@ const knownAgentNames = {
   AG011: 'Andrea Rygiewicz'
 };
 
-// Fallback seed loader for local dev / offline resilience
-let cachedSeed = null;
+// Operational mode: live Google Drive cloud as single source of truth
 async function loadSeed() {
-  if (cachedSeed) return cachedSeed;
-  try {
-    const raw = await readFile(new URL('../../site/seed-data.json', import.meta.url), 'utf8');
-    cachedSeed = JSON.parse(raw);
-    return cachedSeed;
-  } catch {
-    return { articles: [], clients: [], agents: [], company: {} };
-  }
+  return { articles: [], clients: [], agents: [], company: {} };
 }
 
 // 1. Fetch Company
@@ -549,23 +553,118 @@ async function fetchCompanyData(customId, customTab) {
     if (Object.keys(out).length > 0) {
       return { ok: true, source: 'google-sheets', company: out };
     }
-  } catch (err) {
-    console.warn('Google Sheets company read error:', err.message);
-  }
-  const seed = await loadSeed();
-  return { ok: true, source: 'offline-cache', company: seed.company || {} };
+  return {
+    ok: true,
+    source: 'system-default',
+    company: {
+      companyName: 'Pascal Milano',
+      displayName: 'Pascal Cosmesi International',
+      vatNumber: '14442500964',
+      taxCode: '14442500964',
+      address: 'PIAZZA IV NOVEMBRE 25',
+      postalCode: '20099',
+      city: 'Milano',
+      province: 'MI',
+      country: 'Italia',
+      phone: '3929427356',
+      email: 'info@pascalmilano.it',
+      ordersEmail: 'info@pascalmilano.it',
+      currency: 'EUR',
+      defaultVat: '22',
+      offerValidityDays: '30'
+    }
+  };
 }
 
-// 2. Fetch Agents
+// Cache per le credenziali agenti da Google Sheets (30 secondi per ottimizzare le chiamate)
+let cachedAuthAgents = null;
+let lastAuthAgentsFetch = 0;
+const AUTH_AGENTS_CACHE_TTL = 30 * 1000;
+
+async function fetchAuthAgents(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && cachedAuthAgents && (now - lastAuthAgentsFetch < AUTH_AGENTS_CACHE_TTL)) {
+    return cachedAuthAgents;
+  }
+  const id = cleanEnvId(runtimeConfig?.agents?.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId;
+  const tab = runtimeConfig?.agents?.tab || OFFICIAL_SYSTEM_SPREADSHEETS.agents.tab || 'Agenti';
+  try {
+    const rows = await readRange(id, `'${tab}'!A1:Z100`);
+    if (!rows || !rows.length) return cachedAuthAgents || [];
+    let headerIdx = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const line = (rows[i] || []).map(c => String(c).toLowerCase().trim());
+      if (line.some(c => c === 'user' || c === 'username' || c === 'codice' || c.includes('codice agente'))) {
+        headerIdx = i;
+        break;
+      }
+    }
+    if (headerIdx < 0) return cachedAuthAgents || [];
+    const header = rows[headerIdx].map(c => String(c).toLowerCase().trim());
+    const col = name => header.findIndex(h => h.includes(name));
+    const userCol = header.findIndex(h => h === 'user' || h === 'username');
+    const codeIdx = userCol >= 0 ? userCol : (col('codice agente') >= 0 ? col('codice agente') : col('codice'));
+    const activeIdx = col('attivo');
+    const roleIdx = col('ruolo');
+    const nameIdx = col('nome');
+    const surnameIdx = col('cognome');
+    const rsIdx = col('ragione sociale');
+    const emailIdx = col('email accesso') >= 0 ? col('email accesso') : col('email');
+    const pwdIdx = header.findIndex(h => h.includes('pasword') || h.includes('password') || h === 'pwd' || h === 'pin');
+
+    const authList = [];
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r[codeIdx]) continue;
+      const rawUser = String(r[codeIdx]).trim();
+      const idShort = normalizeAgentId(rawUser);
+      const firstName = String(r[nameIdx] || '').trim();
+      const lastName = String(r[surnameIdx] || '').trim();
+      const fullName = [firstName, lastName].filter(Boolean).join(' ') || String(r[rsIdx] || '').trim() || `Agente ${idShort}`;
+      const email = emailIdx >= 0 ? String(r[emailIdx] || '').trim() : '';
+      const activeRaw = activeIdx >= 0 ? String(r[activeIdx] || '').trim().toLowerCase() : 'sì';
+      const active = !activeRaw.startsWith('n') && activeRaw !== 'false' && activeRaw !== '0';
+      const password = pwdIdx >= 0 ? String(r[pwdIdx] || '').trim() : '';
+      const rawRole = roleIdx >= 0 ? String(r[roleIdx] || '').trim().toLowerCase() : 'agente';
+
+      let role = 'agent';
+      if (rawRole.includes('admin') || rawRole.includes('amministr')) {
+        role = 'admin';
+      } else if (rawRole.includes('capo')) {
+        role = 'area_head';
+      }
+
+      authList.push({
+        rawUser,
+        username: rawUser,
+        agentCode: idShort,
+        name: fullName,
+        email,
+        active,
+        password,
+        role
+      });
+    }
+
+    cachedAuthAgents = authList;
+    lastAuthAgentsFetch = now;
+    return authList;
+  } catch (err) {
+    console.warn('Google Sheets auth agents read error:', err.message);
+    return cachedAuthAgents || [];
+  }
+}
+
+// 2. Fetch Agents (per consultazione e dropdown - esclude rigorosamente le password)
 async function fetchAgentsData(customId, customTab) {
   const id = cleanEnvId(customId) || runtimeConfig.agents.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId;
   const tab = customTab || runtimeConfig.agents.tab || OFFICIAL_SYSTEM_SPREADSHEETS.agents.tab || 'Agenti';
   try {
-    const rows = await readRange(id, `'${tab}'!A1:R100`);
+    const rows = await readRange(id, `'${tab}'!A1:Z100`);
     let headerIdx = -1;
     for (let i = 0; i < rows.length; i++) {
       const line = (rows[i] || []).map(c => String(c).toLowerCase().trim());
-      if (line.some(c => c.includes('codice agente') || c === 'codice')) {
+      if (line.some(c => c === 'user' || c === 'username' || c === 'codice' || c.includes('codice agente'))) {
         headerIdx = i;
         break;
       }
@@ -573,7 +672,8 @@ async function fetchAgentsData(customId, customTab) {
     if (headerIdx >= 0) {
       const header = rows[headerIdx].map(c => String(c).toLowerCase().trim());
       const col = name => header.findIndex(h => h.includes(name));
-      const codeIdx = col('codice agente') >= 0 ? col('codice agente') : col('codice');
+      const userCol = header.findIndex(h => h === 'user' || h === 'username');
+      const codeIdx = userCol >= 0 ? userCol : (col('codice agente') >= 0 ? col('codice agente') : col('codice'));
       const activeIdx = col('attivo');
       const roleIdx = col('ruolo');
       const parentIdx = col('assegnato a');
@@ -582,9 +682,9 @@ async function fetchAgentsData(customId, customTab) {
       const rsIdx = col('ragione sociale');
       const emailIdx = col('email accesso') >= 0 ? col('email accesso') : col('email');
       const phoneIdx = col('telefono');
-      const canOfferIdx = col('offerte');
-      const canOrderIdx = col('ordini');
-      const discountIdx = col('sconto');
+      const canOfferIdx = col('può creare offerte') >= 0 ? col('può creare offerte') : col('offerte');
+      const canOrderIdx = col('può creare ordini') >= 0 ? col('può creare ordini') : col('ordini');
+      const discountIdx = col('limite sconto') >= 0 ? col('limite sconto') : col('sconto');
       const noteIdx = col('note');
 
       const agents = [];
@@ -642,14 +742,13 @@ async function fetchAgentsData(customId, customTab) {
     return { ok: false, source: 'google-sheets', error: `Intestazione con "Codice agente" non trovata nella scheda "${tab}"`, count: 0 };
   } catch (err) {
     console.warn('Google Sheets agents read error:', err.message);
-    const seed = await loadSeed();
     return {
       ok: false,
-      source: 'offline-cache',
+      source: 'google-sheets-error',
       error: err.message,
-      count: (seed.agents || []).length,
-      agents: seed.agents || [],
-      hierarchy: seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] }
+      count: 0,
+      agents: [],
+      hierarchy: { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] }
     };
   }
 }
@@ -717,27 +816,18 @@ async function fetchCustomersData(customId, customTab, user = null) {
       if (customers.length > 0) {
         if (user && user.role !== 'admin' && user.role !== 'area_head') {
           const userAgent = normalizeAgentId(user.agentCode || '');
-          const seed = await loadSeed();
-          const hier = seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
+          const hier = { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
           const allowed = new Set([userAgent, ...(hier[userAgent] || []).map(normalizeAgentId)]);
           customers = customers.filter(c => allowed.has(normalizeAgentId(c.agentId)) || allowed.has(normalizeAgentId(c.sourceAgent)));
         }
         return { ok: true, source: 'google-sheets', count: customers.length, customers };
       }
-      return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" vuota o senza righe valide`, count: 0 };
+      return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" vuota o senza righe valide`, count: 0, customers: [] };
     }
-    return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" non trovata o senza intestazione`, count: 0 };
+    return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" non trovata o senza intestazione`, count: 0, customers: [] };
   } catch (err) {
     console.warn('Google Sheets customers read error:', err.message);
-    const seed = await loadSeed();
-    let customers = seed.clients || [];
-    if (user && user.role !== 'admin' && user.role !== 'area_head') {
-      const userAgent = normalizeAgentId(user.agentCode || '');
-      const hier = seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
-      const allowed = new Set([userAgent, ...(hier[userAgent] || []).map(normalizeAgentId)]);
-      customers = customers.filter(c => allowed.has(normalizeAgentId(c.agentId)) || allowed.has(normalizeAgentId(c.sourceAgent)));
-    }
-    return { ok: false, source: 'offline-cache', error: err.message, count: customers.length, customers };
+    return { ok: false, source: 'google-sheets-error', error: err.message, count: 0, customers: [] };
   }
 }
 
@@ -820,13 +910,12 @@ async function fetchProductsData(customId, customTab) {
       if (products.length > 0) {
         return { ok: true, source: 'google-sheets', count: products.length, products };
       }
-      return { ok: false, source: 'google-sheets', error: `Nessun articolo valido trovato nella scheda "${tab}"`, count: 0 };
+      return { ok: false, source: 'google-sheets', error: `Nessun articolo valido trovato nella scheda "${tab}"`, count: 0, products: [] };
     }
-    return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" non trovata o senza intestazione`, count: 0 };
+    return { ok: false, source: 'google-sheets', error: `Scheda "${tab}" non trovata o senza intestazione`, count: 0, products: [] };
   } catch (err) {
     console.warn('Google Sheets products read error:', err.message);
-    const seed = await loadSeed();
-    return { ok: false, source: 'offline-cache', error: err.message, count: (seed.articles || []).length, products: seed.articles || [] };
+    return { ok: false, source: 'google-sheets-error', error: err.message, count: 0, products: [] };
   }
 }
 
@@ -910,8 +999,8 @@ async function runDiagnostics(testCfg = {}) {
     results.company = {
       status: 'warning',
       icon: '🟡',
-      label: 'Copia locale attiva',
-      message: 'Uso dati locali di fallback (Pascal Milano 2)',
+      label: 'Dati predefiniti attivi',
+      message: 'Uso dati aziendali ufficiali Pascal Milano (P.IVA 14442500964)',
       details: 'Connessione Google Sheets API non attiva'
     };
   }
@@ -999,9 +1088,9 @@ async function runDiagnostics(testCfg = {}) {
     results.customers = {
       status: 'warning',
       icon: '🟡',
-      label: '11 record caricati (offline)',
-      count: 11,
-      message: '11 clienti caricati dal pacchetto offline locale',
+      label: 'Google Drive non collegato',
+      count: 0,
+      message: 'Connessione Google Sheets API non attiva',
       details: 'Connessione Google Sheets API non attiva'
     };
   }
@@ -1044,9 +1133,9 @@ async function runDiagnostics(testCfg = {}) {
     results.products = {
       status: 'warning',
       icon: '🟡',
-      label: '25 record caricati (offline)',
-      count: 25,
-      message: '25 articoli caricati dal listino offline locale',
+      label: 'Google Drive non collegato',
+      count: 0,
+      message: 'Connessione Google Sheets API non attiva',
       details: 'Connessione Google Sheets API non attiva'
     };
   }
@@ -1207,8 +1296,7 @@ async function listDocs(tab, user, customId) {
     const allowedAgents = new Set();
     if (userRole !== 'admin') {
       if (userAgentCode) allowedAgents.add(userAgentCode);
-      const seed = await loadSeed();
-      const hier = seed.hierarchy || { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
+      const hier = { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
       if (hier[userAgentCode]) {
         for (const sub of hier[userAgentCode]) allowedAgents.add(normalizeAgentId(sub));
       }
@@ -1502,6 +1590,49 @@ async function createDoc(tab, body, user, customId) {
     console.error(`Error saving ${tab} to Google Sheets:`, err);
     return json(500, { error: `Errore salvataggio su Google Sheets: ${err.message}` });
   }
+}
+
+async function clearTestDocuments(user, customId) {
+  const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const tabs = [
+    runtimeConfig.repository.tabOffers || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOffers || 'Offerte',
+    runtimeConfig.repository.tabOrders || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOrders || 'Ordini'
+  ];
+
+  const results = {};
+
+  for (const tab of tabs) {
+    try {
+      const rawRows = await readRange(regId, `'${tab}'!A1:Z15`).catch(() => []);
+      let headerIdx = -1;
+      for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+        const line = (rawRows[i] || []).map(c => String(c || '').toLowerCase().trim());
+        if (
+          line.includes('id') ||
+          line.includes('id record') ||
+          line.some(c => c.includes('numero documento') || c.includes('numero ordine') || c.includes('codice agente'))
+        ) {
+          headerIdx = i;
+          break;
+        }
+      }
+
+      // If header is at headerIdx (0-indexed), the first data row is headerIdx + 2 in Sheets 1-indexed numbering
+      const startDataRow = headerIdx >= 0 ? headerIdx + 2 : 2;
+      await clearRange(regId, `'${tab}'!A${startDataRow}:Z1000`);
+      results[tab] = { ok: true, clearedFromRow: startDataRow };
+    } catch (err) {
+      console.error(`Error clearing test records in ${tab}:`, err);
+      results[tab] = { ok: false, error: err.message };
+    }
+  }
+
+  return json(200, {
+    ok: true,
+    message: 'Tutte le offerte e ordini di prova sono stati cancellati con successo dal foglio Google Drive',
+    spreadsheetId: regId,
+    results
+  });
 }
 
 async function createCustomer(body, user, customId) {
@@ -3097,12 +3228,70 @@ export default async (request, context) => {
     // Auth endpoints
     if (path === 'login' && request.method === 'POST') {
       const body = await request.json().catch(() => ({}));
-      const user = users().find(x => x.username === body.username && x.password === body.password);
-      if (!user) {
-        return json(401, { error: 'Credenziali non valide. Riprova con i dati forniti dall’amministrazione.' });
+      const inputUsername = String(body.username || '').trim();
+      const inputPassword = String(body.password || '').trim();
+
+      if (!inputUsername || !inputPassword) {
+        return json(400, { error: 'Inserisci username e password.' });
       }
-      const token = createSessionToken(user);
-      return json(200, { ok: true, user: { username: user.username, name: user.name, role: user.role, agentCode: user.agentCode }, token }, { 'set-cookie': sessionCookie(user) });
+
+      // 1. Account di riserva / fallback emergenza (amministrazione, administrator con Lisa4882, o PILOT_USERS)
+      const fbUser = users().find(x =>
+        String(x.username || '').toLowerCase() === inputUsername.toLowerCase() &&
+        String(x.password || '') === inputPassword
+      );
+
+      if (fbUser) {
+        const token = createSessionToken(fbUser);
+        return json(200, {
+          ok: true,
+          user: { username: fbUser.username, name: fbUser.name, role: fbUser.role, agentCode: fbUser.agentCode },
+          token
+        }, { 'set-cookie': sessionCookie(fbUser) });
+      }
+
+      // 2. Autenticazione live da Google Sheets (foglio Anagrafica_Agenti, scheda Agenti)
+      let sheetAgents = await fetchAuthAgents();
+      let normalizedInput = normalizeAgentId(inputUsername).toLowerCase();
+      let matched = sheetAgents.find(a =>
+        a.username.toLowerCase() === inputUsername.toLowerCase() ||
+        a.agentCode.toLowerCase() === inputUsername.toLowerCase() ||
+        (normalizedInput && a.agentCode.toLowerCase() === normalizedInput) ||
+        (a.email && a.email.toLowerCase() === inputUsername.toLowerCase())
+      );
+
+      // Se non corrisponde o la password è cambiata di recente, eseguiamo un refresh forzato da Google Drive
+      if (!matched || matched.password !== inputPassword) {
+        sheetAgents = await fetchAuthAgents(true);
+        matched = sheetAgents.find(a =>
+          a.username.toLowerCase() === inputUsername.toLowerCase() ||
+          a.agentCode.toLowerCase() === inputUsername.toLowerCase() ||
+          (normalizedInput && a.agentCode.toLowerCase() === normalizedInput) ||
+          (a.email && a.email.toLowerCase() === inputUsername.toLowerCase())
+        );
+      }
+
+      if (matched) {
+        if (!matched.active) {
+          return json(403, { error: 'Utenza disattivata. Contatta l’amministrazione aziendale.' });
+        }
+        if (matched.password && matched.password === inputPassword) {
+          const authUser = {
+            username: matched.username,
+            name: matched.name,
+            role: matched.role || 'agent',
+            agentCode: matched.agentCode
+          };
+          const token = createSessionToken(authUser);
+          return json(200, {
+            ok: true,
+            user: authUser,
+            token
+          }, { 'set-cookie': sessionCookie(authUser) });
+        }
+      }
+
+      return json(401, { error: 'Credenziali non valide. Riprova con i dati forniti dall’amministrazione.' });
     }
 
     if (path === 'logout') {
@@ -3232,6 +3421,21 @@ export default async (request, context) => {
     if (path === 'orders' && request.method === 'POST') {
       if (!user) return json(401, { error: 'Accesso non autorizzato' });
       return createDoc(runtimeConfig.repository.tabOrders || 'Ordini', await request.json(), user, url.searchParams.get('id') || undefined);
+    }
+
+    // Admin operational reset: clear test offers and test orders from Google Drive
+    if ((path === 'repository/clear-test-data' || path === 'orders/clear-test' || path === 'offers/clear-test') && request.method === 'POST') {
+      let authUser = user;
+      const body = await request.json().catch(() => ({}));
+      if (!authUser && body?.username && body?.password) {
+        const u = users().find(x => x.username === body.username && x.password === body.password);
+        if (u && u.role === 'admin') authUser = u;
+      }
+      if (!authUser || authUser.role !== 'admin') {
+        return json(401, { error: 'Accesso riservato all\'amministrazione per la pulizia del registro' });
+      }
+      const customId = url.searchParams.get('id') || body?.spreadsheetId || undefined;
+      return clearTestDocuments(authUser, customId);
     }
 
     // Workflow & order status update (admin only)

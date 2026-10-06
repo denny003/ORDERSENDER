@@ -120,14 +120,20 @@ function getStoredConfig() {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
         const cleaned = sanitizeConfig(parsed);
-        if (JSON.stringify(cleaned) !== raw) {
-          try { localStorage.setItem('companyConfig', JSON.stringify(cleaned)); } catch (e) {}
-        }
+        // In operational phase, always ensure canonical Google Drive IDs
+        cleaned.company.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.company.spreadsheetId;
+        cleaned.agents.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.agents.spreadsheetId;
+        cleaned.customers.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.customers.spreadsheetId;
+        cleaned.products.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.products.spreadsheetId;
+        cleaned.repository.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+        cleaned.warehouse.spreadsheetId = OFFICIAL_SYSTEM_SPREADSHEETS.warehouse.spreadsheetId;
+        cleaned.googleDrive = { ...OFFICIAL_SYSTEM_SPREADSHEETS.googleDrive };
+        try { localStorage.setItem('companyConfig', JSON.stringify(cleaned)); } catch (e) {}
         return cleaned;
       }
     }
   } catch (e) {}
-  return null;
+  return JSON.parse(JSON.stringify(OFFICIAL_SYSTEM_SPREADSHEETS));
 }
 
 // Immediate synchronous initialization from localStorage or defaults
