@@ -553,6 +553,9 @@ async function fetchCompanyData(customId, customTab) {
     if (Object.keys(out).length > 0) {
       return { ok: true, source: 'google-sheets', company: out };
     }
+  } catch (err) {
+    console.warn('Google Sheets company read error:', err.message);
+  }
   return {
     ok: true,
     source: 'system-default',
