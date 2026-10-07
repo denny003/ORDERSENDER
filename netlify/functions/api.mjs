@@ -1378,6 +1378,7 @@ async function listDocs(tab, user, customId) {
         version,
         notes,
         payload: payloadObj,
+        lines: payloadObj?.lines || payloadObj?.items || payloadObj?.products || [],
         origin_offer_id: originOffer,
         ddt_number: ddtNum,
         ddt_date: ddtDate,
@@ -1409,7 +1410,7 @@ async function listDocs(tab, user, customId) {
     const ordersTab = runtimeConfig.repository.tabOrders || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOrders || 'Ordini';
     const offersTab = runtimeConfig.repository.tabOffers || OFFICIAL_SYSTEM_SPREADSHEETS.repository.tabOffers || 'Offerte';
     if ((tab === ordersTab || tab === 'Ordini') && !user?._enrichingOrders) {
-      const ordersMissingLines = docs.filter(d => (!d.payload?.lines || d.payload.lines.length === 0) && (d.origin_offer_id || d.payload?.convertedFromOffer));
+      const ordersMissingLines = docs.filter(d => (!d.payload?.lines || d.payload.lines.length === 0) && (!d.lines || d.lines.length === 0) && (d.origin_offer_id || d.payload?.convertedFromOffer));
       if (ordersMissingLines.length > 0) {
         try {
           const enrichUser = user ? { ...user, _enrichingOrders: true } : { role: 'admin', _enrichingOrders: true };
@@ -1422,12 +1423,14 @@ async function listDocs(tab, user, customId) {
           for (const ord of ordersMissingLines) {
             const offRef = ord.origin_offer_id || ord.payload?.convertedFromOffer;
             const matchedOffer = offersMap.get(offRef);
-            if (matchedOffer && matchedOffer.payload?.lines) {
+            if (matchedOffer && (matchedOffer.payload?.lines || matchedOffer.lines)) {
+              const matchedLines = matchedOffer.payload?.lines || matchedOffer.lines || [];
+              ord.lines = matchedLines;
               ord.payload = {
                 ...(ord.payload || {}),
                 payment: ord.payload?.payment || matchedOffer.payload?.payment,
                 shipping: ord.payload?.shipping || matchedOffer.payload?.shipping,
-                lines: matchedOffer.payload.lines
+                lines: matchedLines
               };
             }
           }
@@ -1481,6 +1484,10 @@ async function createDoc(tab, body, user, customId) {
       const isOfficialTemplate = header.some(h => h.includes('esito azienda') || h.includes('stato avanzamento') || h.includes('id record'));
 
       if (isOfficialTemplate) {
+        if (tab === 'Ordini' && (rawRows[headerIdx].length < 25 || !String(rawRows[headerIdx][24] || '').trim())) {
+          await updateRow(regId, `'${tab}'!Y${headerIdx + 1}`, [['payload_json']]).catch(() => {});
+        }
+
         if (tab === 'Offerte') {
           row = [
             id,
@@ -1506,7 +1513,7 @@ async function createDoc(tab, body, user, customId) {
           row = [
             id,
             number,
-            body.originOfferId || '',
+            body.originOfferId || body.payload?.originOfferId || body.payload?.convertedFromOffer || '',
             now,
             now,
             agentCode,
@@ -1527,7 +1534,8 @@ async function createDoc(tab, body, user, customId) {
             '',
             '',
             'No',
-            now
+            now,
+            payloadStr
           ];
         }
       } else {
@@ -1903,7 +1911,7 @@ async function updateOrderStatus(orderId, updateData, user) {
   const regId = cleanEnvId(updateData?.spreadsheetId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
   const tab = runtimeConfig.repository.tabOrders || 'Ordini';
 
-  const rawRows = await readRange(regId, `'${tab}'!A1:X1000`);
+  const rawRows = await readRange(regId, `'${tab}'!A1:Z1000`);
   if (!rawRows || !rawRows.length) throw new Error('Nessun ordine presente nel foglio');
 
   let headerIdx = -1;
@@ -1953,7 +1961,7 @@ async function updateOrderStatus(orderId, updateData, user) {
   }
 
   const existingRow = [...rawRows[targetRowIdx]];
-  while (existingRow.length < 24) existingRow.push('');
+  while (existingRow.length < 25) existingRow.push('');
 
   const now = new Date().toISOString();
   if (updIdx >= 0) existingRow[updIdx] = now;
@@ -1966,7 +1974,7 @@ async function updateOrderStatus(orderId, updateData, user) {
   if (updateData.trackingLink !== undefined && trackLinkIdx >= 0) existingRow[trackLinkIdx] = updateData.trackingLink;
   if (updateData.shippingDate !== undefined && shipDateIdx >= 0) existingRow[shipDateIdx] = updateData.shippingDate;
 
-  // Persist DDT metadata inside payload_json column
+  // Persist DDT metadata and lines inside payload_json column
   let payloadColIdx = -1;
   let payloadObj = {};
   for (let k = existingRow.length - 1; k >= 0; k--) {
@@ -1980,7 +1988,18 @@ async function updateOrderStatus(orderId, updateData, user) {
     }
   }
 
-  if (payloadColIdx >= 0 || updateData.ddtNumber) {
+  if (payloadColIdx < 0) {
+    const jsonHeaderIdx = findCol(['payload_json', 'payload', 'dati_json']);
+    payloadColIdx = jsonHeaderIdx >= 0 ? jsonHeaderIdx : 24;
+  }
+
+  if (Array.isArray(updateData.lines) && updateData.lines.length > 0) {
+    payloadObj.lines = updateData.lines;
+  } else if (Array.isArray(updateData.payload?.lines) && updateData.payload.lines.length > 0) {
+    payloadObj.lines = updateData.payload.lines;
+  }
+
+  if (payloadColIdx >= 0 || updateData.ddtNumber || updateData.lines || updateData.payload?.lines) {
     payloadObj.ddt_info = {
       ...(payloadObj.ddt_info || {}),
       ddtNumber: updateData.ddtNumber !== undefined ? updateData.ddtNumber : payloadObj.ddt_info?.ddtNumber,
@@ -2004,13 +2023,12 @@ async function updateOrderStatus(orderId, updateData, user) {
       customerEmail: updateData.customerEmail !== undefined ? updateData.customerEmail : payloadObj.ddt_info?.customerEmail
     };
 
-    if (payloadColIdx >= 0) {
-      existingRow[payloadColIdx] = JSON.stringify(payloadObj);
-    }
+    while (existingRow.length <= payloadColIdx) existingRow.push('');
+    existingRow[payloadColIdx] = JSON.stringify(payloadObj);
   }
 
   const sheetRowNum = targetRowIdx + 1;
-  await updateRow(regId, `'${tab}'!A${sheetRowNum}:X${sheetRowNum}`, [existingRow]);
+  await updateRow(regId, `'${tab}'!A${sheetRowNum}:Z${sheetRowNum}`, [existingRow]);
 
   return { ok: true, orderId, updatedRow: sheetRowNum, status: updateData.status };
 }
