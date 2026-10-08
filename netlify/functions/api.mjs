@@ -19,7 +19,8 @@ function users() {
   const defaults = [
     { username: 'amministrazione', password: 'cambiare-password', name: 'Amministrazione', role: 'admin', agentCode: 'AG01' },
     { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' },
-    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' }
+    { username: 'agente01', password: 'cambiare-password', name: 'Tina Cucci', role: 'agent', agentCode: 'AG01' },
+    { username: 'agente10', password: 'cambiare-password', name: "Daniele Sama'", role: 'agent', agentCode: 'AG10' }
   ];
   try {
     const list = JSON.parse(process.env.PILOT_USERS || '[]');
@@ -96,7 +97,7 @@ function sessionCookie(user) {
 function normalizeAgentId(code) {
   if (!code) return '';
   const str = String(code).trim().toUpperCase();
-  const m = str.match(/^(?:AG|AGENTE)0*(\d+)$/);
+  const m = str.match(/^(?:AG|AGENTE)?\s*0*(\d+)$/i);
   if (m) {
     const num = parseInt(m[1], 10);
     return `AG${num < 10 ? '0' + num : num}`;
@@ -531,17 +532,17 @@ const companyKeys = {
 };
 
 const knownAgentNames = {
-  AG001: 'Tina Cucci',
-  AG002: 'David Alfano',
-  AG003: 'Bianca Narducci',
-  AG004: 'Loredana Andreoli',
-  AG005: 'Nunzio Sorce',
-  AG006: 'Enzo Nicastro',
-  AG007: 'Linda de gavi',
-  AG008: 'Pietro Vivenza',
-  AG009: 'Paolo Infante',
-  AG010: 'Daniele sama’',
-  AG011: 'Andrea Rygiewicz'
+  AG001: 'Tina Cucci', AG01: 'Tina Cucci',
+  AG002: 'David Alfano', AG02: 'David Alfano',
+  AG003: 'Bianca Narducci', AG03: 'Bianca Narducci',
+  AG004: 'Loredana Andreoli', AG04: 'Loredana Andreoli',
+  AG005: 'Nunzio Sorce', AG05: 'Nunzio Sorce',
+  AG006: 'Enzo Nicastro', AG06: 'Enzo Nicastro',
+  AG007: 'Linda de gavi', AG07: 'Linda de gavi',
+  AG008: 'Pietro Vivenza', AG08: 'Pietro Vivenza',
+  AG009: 'Paolo Infante', AG09: 'Paolo Infante',
+  AG010: "Daniele Sama'", AG10: "Daniele Sama'",
+  AG011: 'Andrea Rygiewicz', AG11: 'Andrea Rygiewicz'
 };
 
 // Operational mode: live Google Drive cloud as single source of truth
@@ -810,13 +811,34 @@ async function fetchCustomersData(customId, customTab, user = null) {
         return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
       };
 
+      // Recupero dinamico degli agenti attivi da Google Drive (Anagrafica_Agenti)
+      const dynamicAgents = await fetchAuthAgents().catch(() => []);
+
       let customers = [];
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
         if (!r || r[codeIdx] == null || String(r[codeIdx]).trim() === '') continue;
         const codeVal = String(r[codeIdx]).replace(/\.0$/, '').trim();
         const agentVal = String(r[agentIdx] || '').trim();
-        const agentId = agentVal ? normalizeAgentId(agentVal) : 'UNASSIGNED';
+        
+        // Risoluzione 100% dinamica su Google Drive: confronta con codice, username, nome o email dell'agente
+        let agentId = 'UNASSIGNED';
+        if (agentVal) {
+          const normVal = agentVal.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const matchedDyn = (dynamicAgents || []).find(a => {
+            const aCode = String(a.agentCode || a.code || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const aUser = String(a.username || a.rawUser || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const aName = String(a.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const aEmail = String(a.email || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return normVal === aCode ||
+                   normVal === aUser ||
+                   normVal === aName ||
+                   (aName && (normVal.includes(aName) || aName.includes(normVal))) ||
+                   normVal === aEmail ||
+                   (aCode.replace(/\D+/g, '') && aCode.replace(/\D+/g, '') === normVal.replace(/\D+/g, ''));
+          });
+          agentId = matchedDyn ? matchedDyn.agentCode : normalizeAgentId(agentVal);
+        }
 
         const maxDiscRaw = maxDiscIdx >= 0 && r[maxDiscIdx] != null ? String(r[maxDiscIdx]).trim() : '';
         const maxDiscParsed = maxDiscRaw !== '' ? parseDisc(maxDiscRaw) : null;
@@ -856,8 +878,21 @@ async function fetchCustomersData(customId, customTab, user = null) {
         if (user && user.role !== 'admin' && user.role !== 'area_head') {
           const userAgent = normalizeAgentId(user.agentCode || '');
           const hier = { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
-          const allowed = new Set([userAgent, ...(hier[userAgent] || []).map(normalizeAgentId)]);
-          customers = customers.filter(c => allowed.has(normalizeAgentId(c.agentId)) || allowed.has(normalizeAgentId(c.sourceAgent)));
+          const subAgents = (hier[userAgent] || []).map(normalizeAgentId);
+          const allowed = new Set([
+            userAgent,
+            userAgent.replace(/^AG0?/, 'AG'),
+            userAgent.replace(/^AG0?/, 'AG0'),
+            userAgent.replace(/^AG0*/, ''),
+            ...subAgents,
+            ...subAgents.map(s => s.replace(/^AG0?/, 'AG')),
+            ...subAgents.map(s => s.replace(/^AG0*/, ''))
+          ]);
+          customers = customers.filter(c => {
+            const normAg = normalizeAgentId(c.agentId);
+            const normSrc = normalizeAgentId(c.sourceAgent);
+            return allowed.has(c.agentId) || allowed.has(normAg) || allowed.has(c.sourceAgent) || allowed.has(normSrc);
+          });
         }
         return { ok: true, source: 'google-sheets', count: customers.length, customers };
       }

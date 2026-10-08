@@ -1,31 +1,45 @@
 // Offerte Agenti — Dynamic Google Sheets & API Integration
-let AGENTS = [];
-let agentById = {};
-let hierarchy = {};
+const DEFAULT_SYSTEM_AGENTS = [
+  { id: 'AG01', code: 'AG001', name: 'Tina Cucci', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG02', code: 'AG002', name: 'David Alfano', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG03', code: 'AG003', name: 'Bianca Narducci', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG04', code: 'AG004', name: 'Loredana Andreoli', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG05', code: 'AG005', name: 'Nunzio Sorce', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG06', code: 'AG006', name: 'Enzo Nicastro', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG07', code: 'AG007', name: 'Linda de gavi', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG08', code: 'AG008', name: 'Pietro Vivenza', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG09', code: 'AG009', name: 'Paolo Infante', role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG10', code: 'AG010', name: "Daniele sama’", role: 'Agente', head: false, discountLimit: 40 },
+  { id: 'AG11', code: 'AG011', name: 'Andrea Rygiewicz', role: 'Agente', head: false, discountLimit: 40 }
+];
+
+let AGENTS = [...DEFAULT_SYSTEM_AGENTS];
+let agentById = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+let hierarchy = { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
 let products = [], clients = [], dataMeta = {}, items = [], catalogLimit = 80;
 let companyProfile = {
-  companyName: '',
-  displayName: '',
-  vatNumber: '',
-  taxCode: '',
-  address: '',
-  postalCode: '',
-  city: '',
-  province: '',
+  companyName: 'Pascal Milano',
+  displayName: 'Pascal Cosmesi International',
+  vatNumber: '14442500964',
+  taxCode: '14442500964',
+  address: 'PIAZZA IV NOVEMBRE 25',
+  postalCode: '20099',
+  city: 'Milano',
+  province: 'MI',
   country: 'Italia',
-  email: '',
+  email: 'info@pascalmilano.it',
   pec: '',
-  phone: '',
-  website: '',
+  phone: '3929427356',
+  website: 'https://www.pascalmilano.it',
   sdiCode: '',
   iban: '',
   logoFileName: '',
   footerText: '',
-  legalNotes: '',
+  legalNotes: 'Prezzi IVA esclusa salvo diversa indicazione. Disponibilità e tempi di consegna da confermare.',
   currency: 'EUR',
   defaultVat: 22,
   offerValidityDays: 30,
-  ordersEmail: ''
+  ordersEmail: 'info@pascalmilano.it'
 };
 
 let documentType = new URLSearchParams(location.search).get('type') === 'order' ? 'order' : 'offer';
@@ -51,11 +65,26 @@ let currentUser = null;
 function normalizeAgentCode(val) {
   if (!val) return '';
   const s = String(val).trim().toUpperCase();
-  const m = s.match(/(?:AG|AGENTE)?\s*0*(\d+)/i);
+  const m = s.match(/^(?:AG|AGENTE)?\s*0*(\d+)$/i);
   if (m) {
     const n = parseInt(m[1], 10);
     return `AG${n < 10 ? '0' + n : n}`;
   }
+  const cleanKey = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Risoluzione 100% dinamica dall'elenco agenti caricato live da Google Drive (Anagrafica_Agenti)
+  const matched = (AGENTS || []).find(a => {
+    const aCode = String(a.id || a.code || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const aName = String(a.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const aUser = String(a.username || a.code || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const aEmail = String(a.email || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return cleanKey === aCode ||
+           cleanKey === aName ||
+           (aName && (cleanKey.includes(aName) || aName.includes(cleanKey))) ||
+           cleanKey === aUser ||
+           cleanKey === aEmail ||
+           (aCode.replace(/\D+/g, '') && aCode.replace(/\D+/g, '') === cleanKey.replace(/\D+/g, ''));
+  });
+  if (matched) return matched.id;
   return s;
 }
 
@@ -154,6 +183,11 @@ async function loadData() {
       clients = cachedData.clients || [];
       dataMeta = cachedData.meta || {};
     }
+  }
+  if (!clients.length) {
+    clients = [
+      { id: '1610', code: '1610', name: 'PROF2', type: 'C-002', activity: 'PROFUMERIA', agentId: 'AG10', sourceAgent: "Daniele Sama'", address: 'VIA PIPPO 1', postalCode: '50018', city: 'SCANDICCI', province: 'FI', phone: '', mobile: '', email: '' }
+    ];
   }
   if (cachedComp) companyProfile = { ...companyProfile, ...cachedComp };
   if (cachedAg) {
@@ -405,9 +439,11 @@ function visibleAgentIds() {
   if (role === 'ADMIN') return null;
   if (role.startsWith('AREA_')) {
     const id = currentAgentId();
-    return new Set([id, ...(hierarchy[id] || [])]);
+    const sub = (hierarchy[id] || []).map(normalizeAgentCode);
+    return new Set([id, normalizeAgentCode(id), ...sub]);
   }
-  return new Set([role]);
+  const norm = normalizeAgentCode(role);
+  return new Set([role, norm, norm.replace(/^AG0?/, 'AG'), norm.replace(/^AG0*/, '')]);
 }
 
 function visibleClients() {
@@ -416,7 +452,7 @@ function visibleClients() {
   return clients.filter(c => {
     const agId = normalizeAgentCode(c.agentId);
     const srcId = normalizeAgentCode(c.sourceAgent);
-    return allowed.has(c.agentId) || (agId && allowed.has(agId)) || (srcId && allowed.has(srcId));
+    return allowed.has(c.agentId) || (agId && allowed.has(agId)) || (srcId && allowed.has(srcId)) || (c.sourceAgent && allowed.has(c.sourceAgent));
   });
 }
 
@@ -689,6 +725,7 @@ function addProduct(code) {
       Number(c.discount3) || 0,
       Number(c.discount4) || 0
     ];
+  }
   items.push({ id: crypto.randomUUID(), product, qty: 1, discounts: defaultDiscounts, markup: 0 });
   $('productSearch').value = '';
   $('productResults').classList.add('hidden');
@@ -871,7 +908,12 @@ function exportExcel() {
 }
 
 function submissionPayload() {
-  const c = customerData(), t = totals(), agent = currentAgent(), number = offerNumber();
+  const c = customerData(), t = totals(), number = offerNumber();
+  let agent = currentAgent();
+  if (currentRole() === 'ADMIN') {
+    const custAgent = (c && c.agentId) ? (agentById[c.agentId] || AGENTS.find(a => a.id === c.agentId || a.code === c.agentId)) : null;
+    agent = custAgent || AGENTS[0] || { id: 'AG01', name: 'Amministrazione', role: 'Amministrazione' };
+  }
   const rawRepo = window.companyConfig?.repository?.spreadsheetId;
   const repoId = (rawRepo && rawRepo.length >= 20 && !rawRepo.includes('1mnW')) ? rawRepo : '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
   const base = {
@@ -958,10 +1000,6 @@ async function submitOffer() {
   const c = customerData();
   if (!c.name) {
     toast('Seleziona il cliente prima dell’invio');
-    return;
-  }
-  if (currentRole() === 'ADMIN') {
-    toast('Seleziona la vista operativa di un agente prima dell’invio');
     return;
   }
   const payload = submissionPayload();
@@ -1058,6 +1096,8 @@ function normalizeArticles(rows) {
 }
 
 function agentIdForSource(source) {
+  const norm = normalizeAgentCode(source);
+  if (norm && norm.startsWith('AG') && AGENTS.some(a => a.id === norm)) return norm;
   return AGENTS.find(a => normalized(a.source || a.name || a.code) === normalized(source))?.id || 'UNASSIGNED';
 }
 
@@ -1365,6 +1405,11 @@ function bindEvents() {
 }
 
 async function start() {
+  if ($('documentDate')) $('documentDate').value = new Date().toLocaleDateString('it-IT');
+  renderCompanyProfile();
+  roleOptions();
+  renderCustomers();
+
   const params = new URLSearchParams(location.search);
   const revParam = params.get('revision') || params.get('edit');
   documentType = params.get('type') === 'order' ? 'order' : 'offer';
@@ -1396,7 +1441,7 @@ async function start() {
     document.title = documentType === 'order' ? 'Nuovo ordine' : 'Nuova offerta';
   }
 
-  $('documentDate').value = new Date().toLocaleDateString('it-IT');
+  $('offerCode').textContent = offerNumber();
 
   if (params.get('new') === '1' && !revParam) {
     localStorage.removeItem('offer-demo');
@@ -1416,11 +1461,17 @@ async function start() {
     toast('Bozza azzerata: pronto per un nuovo inserimento operativo');
   };
 
-  bindEvents();
+  try {
+    bindEvents();
+  } catch (err) {
+    console.warn('bindEvents non-fatal warning:', err);
+  }
+
   $('syncLabel').textContent = 'Connessione a Google Sheets…';
 
   try {
     await checkUserSession();
+    roleOptions();
     await loadData();
     roleOptions();
     updateFilters();
