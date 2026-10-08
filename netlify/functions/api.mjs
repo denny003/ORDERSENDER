@@ -1548,6 +1548,7 @@ async function createDoc(tab, body, user, customId) {
     payloadData.lines = body.lines;
   }
   const payloadStr = JSON.stringify(payloadData);
+  const total = Number(body.total || body.amount || body.grandTotal || payloadData.total || 0);
 
   try {
     const rawRows = await readRange(regId, `'${tab}'!A1:Z10`);
