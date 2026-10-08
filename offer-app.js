@@ -49,11 +49,7 @@ const discountLabel = item => [...item.discounts.map(d => `${num.format(d)}%`), 
 const currentRole = () => $('roleSelect')?.value || (AGENTS[0]?.id || 'AG01');
 const currentAgentId = () => currentRole().replace('AREA_', '');
 const currentAgent = () => agentById[currentAgentId()] || AGENTS[0] || { id: 'AG01', name: 'Agente', role: 'Agente', discountLimit: 40 };
-const maxAllowedDiscount = (product) => {
-  const agLimit = currentAgent()?.discountLimit != null ? Number(currentAgent().discountLimit) : 40;
-  const prodLimit = product.maxDiscount != null ? Number(product.maxDiscount) : 100;
-  return Math.min(prodLimit, agLimit > 0 ? agLimit : 100);
-};
+const maxAllowedDiscount = (product) => 100;
 
 const nowLabel = iso => iso ? new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso)) : '—';
 
@@ -447,10 +443,6 @@ function toast(message) {
 function canExport() {
   if (!items.length) {
     toast('Inserisci almeno un articolo');
-    return false;
-  }
-  if (items.some(i => effectiveDiscount(i.discounts) > maxAllowedDiscount(i.product) + 0.0001)) {
-    toast('Correggi gli sconti che superano il limite autorizzato');
     return false;
   }
   return true;

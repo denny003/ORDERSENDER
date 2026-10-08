@@ -100,13 +100,9 @@ const currentAgent = () => {
   return AGENTS[0] || { id: 'AG01', name: 'Agente', role: 'Agente', discountLimit: 40 };
 };
 
-const maxAllowedDiscount = (product, customer) => {
-  const cust = customer || (typeof customerData === 'function' ? customerData() : null);
-  const agLimit = currentAgent()?.discountLimit != null ? Number(currentAgent().discountLimit) : 40;
-  const prodLimit = product.maxDiscount != null ? Number(product.maxDiscount) : 100;
-  const custLimit = (cust && cust.maxDiscount != null && Number(cust.maxDiscount) > 0) ? Number(cust.maxDiscount) : 100;
-  return Math.min(prodLimit, agLimit > 0 ? agLimit : 100, custLimit);
-};
+// Autonomia sconti agenti: nessun blocco o tetto vincolante in fase operativa
+const maxAllowedDiscount = (product, customer) => 100;
+
 
 const nowLabel = iso => iso ? new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso)) : '—';
 
@@ -477,9 +473,10 @@ function showCustomer() {
   if (c.iban) extraBadges.push(`IBAN: ${c.iban}`);
   if (c.bank) extraBadges.push(`Banca: ${c.bank}`);
   
-  // Politica Sconti (Google Drive)
-  const maxDisStr = c.maxDiscount != null ? `🏷️ Sconto Max: ${c.maxDiscount}%` : `🏷️ Limite Agente: ${currentAgent()?.discountLimit || 40}%`;
-  extraBadges.push(maxDisStr);
+  // Politica Sconti (Google Drive) - Solo indicativa, non vincolante
+  if (c.maxDiscount != null && Number(c.maxDiscount) > 0) {
+    extraBadges.push(`🏷️ Sconto rif.: ${c.maxDiscount}%`);
+  }
   if (c.discountTable) extraBadges.push(`📊 Tabella: ${c.discountTable}`);
   const clientDiscounts = [c.discount1, c.discount2, c.discount3, c.discount4].filter(d => Number(d) > 0);
   if (clientDiscounts.length > 0) {
@@ -510,12 +507,7 @@ function applyCustomerDiscountsToItems() {
   if (!c || !items.length) return;
   const base = [Number(c.discount1) || 0, Number(c.discount2) || 0, Number(c.discount3) || 0, Number(c.discount4) || 0];
   items.forEach(it => {
-    const maxLimit = maxAllowedDiscount(it.product, c);
-    let ds = [...base];
-    if (effectiveDiscount(ds) > maxLimit + 0.0001) {
-      ds = [Math.min(maxLimit, ds[0]), 0, 0, 0];
-    }
-    it.discounts = ds;
+    it.discounts = [...base];
   });
   renderOffer();
   toast('Sconti cliente applicati a tutti gli articoli');
@@ -697,12 +689,6 @@ function addProduct(code) {
       Number(c.discount3) || 0,
       Number(c.discount4) || 0
     ];
-  }
-  const maxLimit = maxAllowedDiscount(product, c);
-  const eff = effectiveDiscount(defaultDiscounts);
-  if (eff > maxLimit + 0.0001) {
-    defaultDiscounts = [Math.min(maxLimit, defaultDiscounts[0]), 0, 0, 0];
-  }
   items.push({ id: crypto.randomUUID(), product, qty: 1, discounts: defaultDiscounts, markup: 0 });
   $('productSearch').value = '';
   $('productResults').classList.add('hidden');
@@ -723,10 +709,8 @@ function renderOffer() {
   const c = customerData();
   $('itemsList').innerHTML = items.map(it => {
     const eff = effectiveDiscount(it.discounts);
-    const maxLimit = maxAllowedDiscount(it.product, c);
-    const valid = eff <= maxLimit + 0.0001;
 
-    return `<tr class="${valid ? '' : 'invalid-row'}"><td class="product-cell"><strong title="${esc(it.product.description)}">${esc(it.product.code)} · ${esc(it.product.description)}</strong><small>${esc([it.product.brand, it.product.macroFamily, it.product.family].filter(Boolean).join(' · '))} · Disp. ${num.format(it.product.stock)} · Max sc. ${maxLimit}% · IVA ${it.product.vat || 22}%</small></td><td><input aria-label="Quantità" type="number" min="0.01" step="0.01" value="${it.qty}" data-id="${it.id}" data-field="qty"></td><td><input aria-label="Listino" class="readonly" value="${num.format(it.product.price)}" readonly></td>${it.discounts.map((d, n) => `<td><input aria-label="Sconto ${n + 1}" type="number" min="0" max="100" step="0.1" value="${d}" data-id="${it.id}" data-discount="${n}"></td>`).join('')}<td><input aria-label="Ricarico" type="number" min="0" max="100" step="0.1" value="${it.markup}" data-id="${it.id}" data-field="markup"></td><td class="net-cell">${euro.format(lineNet(it))}<small class="${valid ? '' : 'bad'}">eq. ${num.format(eff)}%${valid ? '' : ' !'}</small></td><td><button class="compact-remove" data-remove="${it.id}" aria-label="Rimuovi">×</button></td></tr>`;
+    return `<tr><td class="product-cell"><strong title="${esc(it.product.description)}">${esc(it.product.code)} · ${esc(it.product.description)}</strong><small>${esc([it.product.brand, it.product.macroFamily, it.product.family].filter(Boolean).join(' · '))} · Disp. ${num.format(it.product.stock)} · IVA ${it.product.vat || 22}%</small></td><td><input aria-label="Quantità" type="number" min="0.01" step="0.01" value="${it.qty}" data-id="${it.id}" data-field="qty"></td><td><input aria-label="Listino" class="readonly" value="${num.format(it.product.price)}" readonly></td>${it.discounts.map((d, n) => `<td><input aria-label="Sconto ${n + 1}" type="number" min="0" max="100" step="0.1" value="${d}" data-id="${it.id}" data-discount="${n}"></td>`).join('')}<td><input aria-label="Ricarico" type="number" min="0" max="100" step="0.1" value="${it.markup}" data-id="${it.id}" data-field="markup"></td><td class="net-cell">${euro.format(lineNet(it))}<small>eq. ${num.format(eff)}%</small></td><td><button class="compact-remove" data-remove="${it.id}" aria-label="Rimuovi">×</button></td></tr>`;
   }).join('');
 
   document.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
@@ -749,17 +733,14 @@ function renderOffer() {
 
 function updateTotals() {
   const t = totals();
-  const c = customerData();
-  const invalid = items.some(i => effectiveDiscount(i.discounts) > maxAllowedDiscount(i.product, c) + 0.0001);
   $('listTotal').textContent = euro.format(t.list);
   $('discountTotal').textContent = (t.net - t.list > 0 ? '+ ' : '') + euro.format(t.net - t.list);
   $('netTotal').textContent = euro.format(t.net);
   $('vatTotal').textContent = euro.format(t.vat);
   $('grandTotal').textContent = euro.format(t.grand);
   const v = $('validationStatus');
-  v.className = 'validation ' + (invalid ? 'bad' : items.length ? 'ok' : 'neutral');
-  const custLimitText = (c && c.maxDiscount != null && Number(c.maxDiscount) > 0) ? ` (Max cliente: ${c.maxDiscount}%)` : '';
-  v.textContent = invalid ? `Correggere gli sconti fuori dal limite autorizzato${custLimitText}` : items.length ? 'Offerta pronta per invio, PDF ed Excel' : 'Inserisci almeno un articolo';
+  v.className = 'validation ' + (items.length ? 'ok' : 'neutral');
+  v.textContent = items.length ? `${documentType === 'order' ? 'Ordine pronto' : 'Offerta pronta'} per invio, PDF ed Excel` : 'Inserisci almeno un articolo';
 }
 
 function currentPaymentValue() {
@@ -849,10 +830,6 @@ function toast(message) {
 function canExport() {
   if (!items.length) {
     toast('Inserisci almeno un articolo');
-    return false;
-  }
-  if (items.some(i => effectiveDiscount(i.discounts) > maxAllowedDiscount(i.product) + 0.0001)) {
-    toast('Correggi gli sconti che superano il limite autorizzato');
     return false;
   }
   return true;

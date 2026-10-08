@@ -697,13 +697,10 @@
             <span>📄</span> Registro pratiche
             <span id="rowsCount" class="counter-badge">0</span>
           </h2>
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <div class="tabs-group">
-              <button class="tab-btn active" data-filter="all">Tutte</button>
-              <button class="tab-btn" data-filter="offer">Offerte</button>
-              <button class="tab-btn" data-filter="order">Ordini</button>
-            </div>
-            <button id="adminClearRepoBtn" class="btn-sub hidden" style="padding:6px 10px; font-size:.78rem; color:#b91c1c; border-color:#fca5a5; font-weight:700;" title="Cancella offerte e ordini di prova dal registro Google Drive">🗑️ Pulisci prove</button>
+          <div class="tabs-group">
+            <button class="tab-btn active" data-filter="all">Tutte</button>
+            <button class="tab-btn" data-filter="offer">Offerte</button>
+            <button class="tab-btn" data-filter="order">Ordini</button>
           </div>
         </div>
 
@@ -1157,31 +1154,7 @@
         if ($('adminOrdersTop')) $('adminOrdersTop').classList.remove('hidden');
         if ($('adminProdBtn')) $('adminProdBtn').classList.remove('hidden');
         if ($('adminProdTop')) $('adminProdTop').classList.remove('hidden');
-        if ($('adminClearRepoBtn')) $('adminClearRepoBtn').classList.remove('hidden');
       }
-
-      $('adminClearRepoBtn').onclick = async () => {
-        if (!confirm('ATTENZIONE - AVVIO FASE OPERATIVA:\n\nVuoi cancellare tutte le offerte e gli ordini di test dal registro Google Drive?\n\nQuesta operazione lascerà intatte le colonne e le intestazioni ma eliminerà tutte le righe di prova.')) {
-          return;
-        }
-        try {
-          $('adminClearRepoBtn').disabled = true;
-          $('adminClearRepoBtn').textContent = 'Pulizia…';
-          await api('repository/clear-test-data', { method: 'POST', body: '{}' });
-          localStorage.removeItem('oa_cached_practices');
-          localStorage.removeItem('offer-demo');
-          localStorage.removeItem('offer-outbox');
-          localStorage.removeItem('order-numbers');
-          localStorage.removeItem('offer-numbers');
-          alert('Registro Google Drive pulito con successo! Ordini e offerte di prova rimossi.');
-          await load();
-        } catch (err) {
-          alert('Errore pulizia: ' + err.message);
-        } finally {
-          $('adminClearRepoBtn').disabled = false;
-          $('adminClearRepoBtn').textContent = '🗑️ Pulisci prove';
-        }
-      };
 
       // 2. Load practices from API or fallback to cached
       try {
