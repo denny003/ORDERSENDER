@@ -45,7 +45,13 @@
         <span id="agentIdentity">Agente</span>
       </div>
       <div class="party-box customer-box">
-        <div class="party-label"><small>CLIENTE</small><button class="text-btn" id="newCustomerBtn">+ Nuovo</button></div>
+        <div class="party-label">
+          <small>CLIENTE</small>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="text-btn" id="editCustomerBtn" title="Visualizza e modifica scheda anagrafica cliente">✏️ Scheda anagrafica</button>
+            <button type="button" class="text-btn" id="newCustomerBtn">+ Nuovo</button>
+          </div>
+        </div>
         <select id="customerSelect"><option value="">Seleziona un cliente…</option></select>
         <div id="customerDetails" class="customer-details compact hidden"></div>
       </div>
@@ -170,6 +176,45 @@
         <input id="newCustomerBank" placeholder="Banca / Filiale">
       </label>
 
+      <!-- Sezione Politica Sconti per Nuovo Cliente -->
+      <div style="margin-top:10px; padding:10px 12px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px;">
+        <div style="font-size:0.75rem; font-weight:800; color:#0369a1; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
+          🏷️ Politica Sconti & Listino (Google Drive)
+        </div>
+        <div class="two-cols" style="gap:10px;">
+          <label class="field">
+            <span>Sconto Massimo Cliente (%)</span>
+            <input type="number" id="newCustomerMaxDiscount" min="0" max="100" step="0.5" placeholder="Es. 30">
+          </label>
+          <label class="field">
+            <span>Tabella Sconti Associata</span>
+            <input id="newCustomerDiscountTable" placeholder="Es. BASE, EDILIZIA, TAB_A">
+          </label>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-top:8px;">
+          <label class="field">
+            <span style="font-size:0.68rem;">Sc. 1 (%)</span>
+            <input type="number" id="newCustomerDiscount1" min="0" max="100" step="0.5" placeholder="0">
+          </label>
+          <label class="field">
+            <span style="font-size:0.68rem;">Sc. 2 (%)</span>
+            <input type="number" id="newCustomerDiscount2" min="0" max="100" step="0.5" placeholder="0">
+          </label>
+          <label class="field">
+            <span style="font-size:0.68rem;">Sc. 3 (%)</span>
+            <input type="number" id="newCustomerDiscount3" min="0" max="100" step="0.5" placeholder="0">
+          </label>
+          <label class="field">
+            <span style="font-size:0.68rem;">Sc. 4 (%)</span>
+            <input type="number" id="newCustomerDiscount4" min="0" max="100" step="0.5" placeholder="0">
+          </label>
+        </div>
+        <label class="field full" style="margin-top:8px;">
+          <span>Note Anagrafica / Commerciali</span>
+          <input id="newCustomerNotes" placeholder="Note operative visibili su Google Drive">
+        </label>
+      </div>
+
       <label class="field full address-field">
         <span>Agente assegnato</span>
         <select id="assignedAgent"></select>
@@ -178,6 +223,175 @@
       <div class="dialog-actions">
         <button value="cancel" class="btn secondary">Annulla</button>
         <button value="default" class="btn primary" id="confirmCustomer">Salva cliente</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modale Scheda Anagrafica Cliente (Visualizzazione e Modifica) -->
+  <dialog id="customerCardDialog" class="customer-card-dialog" style="max-width:760px; width:94%; border:1px solid #94a3b8; border-radius:12px; padding:0; box-shadow:0 20px 40px rgba(11,41,66,0.25);">
+    <form method="dialog" id="customerCardForm" style="display:flex; flex-direction:column; max-height:90vh;">
+      <div class="dialog-head" style="background:#0b2942; color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h2 style="margin:0; font-size:1.15rem; color:#fff;">Scheda Anagrafica Cliente</h2>
+            <span id="cardCustomerCodeBadge" style="background:rgba(255,255,255,0.2); color:#fff; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:6px;">CLI-0000</span>
+          </div>
+          <p style="margin:3px 0 0; font-size:0.75rem; color:#bae6fd;">Visualizza e modifica dati cliente, tetto sconto e tabella sconti sincronizzati con Google Drive.</p>
+        </div>
+        <button type="button" class="icon-btn" id="closeCustomerCardX" aria-label="Chiudi" style="color:#fff; font-size:1.4rem; background:none; border:none; cursor:pointer;">×</button>
+      </div>
+
+      <div style="padding:16px 18px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" id="cardCustomerId">
+
+        <!-- Dati Anagrafici -->
+        <fieldset style="border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin:0;">
+          <legend style="font-size:0.78rem; font-weight:800; color:#0b2942; padding:0 6px; text-transform:uppercase;">📋 Dati Anagrafici & Sede</legend>
+          <div class="two-cols" style="gap:10px;">
+            <label class="field" style="flex:2;">
+              <span>Ragione Sociale o Nome Azienda *</span>
+              <input id="cardCustomerName" required placeholder="Ragione sociale completa">
+            </label>
+            <label class="field" style="flex:1;">
+              <span>Tipologia / Attività</span>
+              <input id="cardCustomerType" placeholder="Es. Rivenditore, Centro, Privato">
+            </label>
+          </div>
+          <div class="two-cols" style="gap:10px; margin-top:8px;">
+            <label class="field" style="flex:2;">
+              <span>Indirizzo (Via e Civico)</span>
+              <input id="cardCustomerAddress" placeholder="Via / Piazza e n. civico">
+            </label>
+            <label class="field" style="flex:1;">
+              <span>Città *</span>
+              <input id="cardCustomerCity" required placeholder="Città">
+            </label>
+          </div>
+          <div class="two-cols" style="gap:10px; margin-top:8px;">
+            <label class="field">
+              <span>CAP</span>
+              <input id="cardCustomerCap" placeholder="00000" maxlength="5">
+            </label>
+            <label class="field">
+              <span>Provincia (PV)</span>
+              <input id="cardCustomerPv" placeholder="Es. FI, MI, RM" maxlength="2" style="text-transform:uppercase;">
+            </label>
+          </div>
+          <div class="two-cols" style="gap:10px; margin-top:8px;">
+            <label class="field">
+              <span>Partita IVA</span>
+              <input id="cardCustomerVat" placeholder="IT00000000000">
+            </label>
+            <label class="field">
+              <span>Codice Fiscale</span>
+              <input id="cardCustomerTax" placeholder="Codice fiscale" style="text-transform:uppercase;">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Recapiti & Fatturazione -->
+        <fieldset style="border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin:0;">
+          <legend style="font-size:0.78rem; font-weight:800; color:#0b2942; padding:0 6px; text-transform:uppercase;">📞 Contatti & Fatturazione Elettronica</legend>
+          <div class="two-cols" style="gap:10px;">
+            <label class="field">
+              <span>Codice Destinatario SDI (7 car.)</span>
+              <input id="cardCustomerSdi" placeholder="0000000 o codice univoco" maxlength="7" style="text-transform:uppercase;">
+            </label>
+            <label class="field">
+              <span>E-mail Amministrazione</span>
+              <input type="email" id="cardCustomerEmail" placeholder="amministrazione@azienda.it">
+            </label>
+          </div>
+          <div class="two-cols" style="gap:10px; margin-top:8px;">
+            <label class="field">
+              <span>Telefono Fisso</span>
+              <input type="tel" id="cardCustomerPhone" placeholder="Es. 055 123456">
+            </label>
+            <label class="field">
+              <span>Cellulare (WhatsApp / Referente)</span>
+              <input type="tel" id="cardCustomerMobile" placeholder="Es. 333 1234567">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Pagamento & Banca -->
+        <fieldset style="border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin:0;">
+          <legend style="font-size:0.78rem; font-weight:800; color:#0b2942; padding:0 6px; text-transform:uppercase;">💳 Condizioni di Pagamento & Banca</legend>
+          <div class="two-cols" style="gap:10px;">
+            <label class="field" style="flex:1.2;">
+              <span>Condizione di Pagamento predefinita</span>
+              <input id="cardCustomerPayment" placeholder="Es. Ri.Ba. 60 gg. f.m. o Bonifico ant.">
+            </label>
+            <label class="field" style="flex:1;">
+              <span>Banca d'appoggio</span>
+              <input id="cardCustomerBank" placeholder="Banca e Filiale">
+            </label>
+          </div>
+          <label class="field full" style="margin-top:8px;">
+            <span>IBAN Cliente (per Ri.Ba. o bonifico)</span>
+            <input id="cardCustomerIban" placeholder="IT00X0000000000000000000000" style="text-transform:uppercase;">
+          </label>
+        </fieldset>
+
+        <!-- POLITICA SCONTI (GOOGLE DRIVE) -->
+        <fieldset style="border:2px solid #38bdf8; background:#f0f9ff; border-radius:8px; padding:12px; margin:0;">
+          <legend style="font-size:0.78rem; font-weight:900; color:#0369a1; padding:0 8px; text-transform:uppercase; background:#fff; border:1px solid #38bdf8; border-radius:4px;">
+            🏷️ Politica Sconti & Listini (Visibile in chiaro su Google Drive)
+          </legend>
+          <div style="font-size:0.72rem; color:#075985; margin-bottom:10px;">
+            I valori inseriti qui vengono sincronizzati direttamente con il foglio <strong>clienti</strong> su Google Drive. L'amministratore può vederli e modificarli in chiaro sul cloud.
+          </div>
+          
+          <div class="two-cols" style="gap:12px;">
+            <label class="field" style="background:#fff; padding:8px; border-radius:6px; border:1px solid #bae6fd;">
+              <span style="font-weight:800; color:#0369a1;">SCONTO MASSIMO CLIENTE (%)</span>
+              <input type="number" id="cardCustomerMaxDiscount" min="0" max="100" step="0.5" placeholder="Es. 30" style="font-size:0.95rem; font-weight:700; color:#0c4a6e;">
+              <small style="color:#64748b; font-size:0.65rem; display:block; margin-top:2px;">Tetto max concesso all'agente per questo cliente (es. 30%)</small>
+            </label>
+            <label class="field" style="background:#fff; padding:8px; border-radius:6px; border:1px solid #bae6fd;">
+              <span style="font-weight:800; color:#0369a1;">TABELLA SCONTI ASSOCIATA</span>
+              <input id="cardCustomerDiscountTable" placeholder="Es. BASE, EDILIZIA, TAB_A, VIP" style="font-size:0.95rem; font-weight:700; color:#0c4a6e;">
+              <small style="color:#64748b; font-size:0.65rem; display:block; margin-top:2px;">Codice tabella / listino sconto associato al cliente</small>
+            </label>
+          </div>
+
+          <div style="margin-top:10px; background:#fff; padding:8px; border-radius:6px; border:1px solid #bae6fd;">
+            <span style="font-size:0.72rem; font-weight:800; color:#0369a1; display:block; margin-bottom:6px;">
+              SCONTI CLIENTE PREDEFINITI APPLICATI AGLI ARTICOLI (Sc. 1 + Sc. 2 + Sc. 3 + Sc. 4):
+            </span>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
+              <label class="field" style="margin:0;">
+                <span style="font-size:0.68rem;">Sconto 1 (%)</span>
+                <input type="number" id="cardCustomerDiscount1" min="0" max="100" step="0.5" placeholder="0" style="text-align:center; font-weight:700;">
+              </label>
+              <label class="field" style="margin:0;">
+                <span style="font-size:0.68rem;">Sconto 2 (%)</span>
+                <input type="number" id="cardCustomerDiscount2" min="0" max="100" step="0.5" placeholder="0" style="text-align:center; font-weight:700;">
+              </label>
+              <label class="field" style="margin:0;">
+                <span style="font-size:0.68rem;">Sconto 3 (%)</span>
+                <input type="number" id="cardCustomerDiscount3" min="0" max="100" step="0.5" placeholder="0" style="text-align:center; font-weight:700;">
+              </label>
+              <label class="field" style="margin:0;">
+                <span style="font-size:0.68rem;">Sconto 4 (%)</span>
+                <input type="number" id="cardCustomerDiscount4" min="0" max="100" step="0.5" placeholder="0" style="text-align:center; font-weight:700;">
+              </label>
+            </div>
+            <small style="color:#64748b; font-size:0.65rem; display:block; margin-top:4px;">
+              All'inserimento di un articolo, questi valori vengono proposti automaticamente all'agente in conferma d'ordine.
+            </small>
+          </div>
+
+          <label class="field full" style="margin-top:10px;">
+            <span>Note Anagrafica / Commerciali Interne</span>
+            <input id="cardCustomerNotes" placeholder="Condizioni speciali, orari consegna, annotazioni amministrazione…">
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="dialog-actions" style="padding:12px 18px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn secondary" id="closeCustomerCardBtn">Chiudi</button>
+        <button type="button" class="btn primary" id="saveCustomerCardBtn" style="min-width:180px;">💾 Salva su Google Sheets</button>
       </div>
     </form>
   </dialog>

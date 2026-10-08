@@ -1049,10 +1049,83 @@
 
       <div class="dialog-actions" style="margin-top:20px; flex-wrap:wrap;">
         <button type="button" class="btn secondary" onclick="$('orderDetailsModal').close()">Chiudi</button>
+        <button type="button" class="btn secondary" id="btnDetailEditLines" style="font-weight:700; color:#0284c7; border-color:#7dd3fc; background:#f0f9ff;">✏️ Modifica Articoli</button>
         <button type="button" class="btn secondary" id="btnDetailPrintPicking">📦 Stampa Picking</button>
         <button type="button" class="btn secondary" id="btnDetailPrintDdt">📄 Stampa DDT</button>
         <button type="button" class="btn secondary" id="btnDetailOpenStatus" style="font-weight:700;">✏️ Modifica Stato & DDT</button>
         <button type="button" class="btn primary" id="btnDetailApprove" style="background:#0284c7; font-weight:750;">⚙️ Approva Ordine</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: GESTIONE / INSERIMENTO ARTICOLI ORDINE -->
+  <dialog id="editOrderLinesModal" style="width: min(920px, calc(100vw - 28px)); max-height: calc(100vh - 40px); overflow-y: auto;">
+    <div style="padding: 22px;">
+      <div class="dialog-head" style="margin-bottom: 16px;">
+        <div>
+          <h2 id="editLinesModalTitle" style="font-size:1.3rem; font-weight:800; color:var(--navy); margin:0;">Gestione Articoli Ordine</h2>
+          <p id="editLinesModalSubtitle" style="margin:4px 0 0; color:var(--muted); font-size:.86rem;">Aggiungi, modifica o rimuovi gli articoli dell'ordine da registrare su Google Drive</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('editOrderLinesModal').close()">✕</button>
+      </div>
+
+      <!-- Add item controls -->
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:750; font-size:.9rem; color:#1e293b; margin-bottom:10px;">➕ Aggiungi Articolo da Catalogo</div>
+        <div style="display:grid; grid-template-columns: 2.2fr 1fr 1fr 1fr auto; gap:10px; align-items:flex-end;">
+          <div>
+            <label style="display:block; font-size:.78rem; font-weight:600; color:#475569; margin-bottom:4px;">Prodotto Catalogo</label>
+            <select id="editLineProductSelect" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:.85rem; background:#fff;">
+              <option value="">-- Seleziona dal listino --</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:.78rem; font-weight:600; color:#475569; margin-bottom:4px;">Q.tà</label>
+            <input type="number" id="editLineQty" min="1" value="1" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:.85rem; background:#fff;">
+          </div>
+          <div>
+            <label style="display:block; font-size:.78rem; font-weight:600; color:#475569; margin-bottom:4px;">Prezzo Listino</label>
+            <input type="number" step="0.01" id="editLinePrice" value="0.00" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:.85rem; background:#fff;">
+          </div>
+          <div>
+            <label style="display:block; font-size:.78rem; font-weight:600; color:#475569; margin-bottom:4px;">Sconto %</label>
+            <input type="number" step="1" id="editLineDiscount" value="0" placeholder="0" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:.85rem; background:#fff;">
+          </div>
+          <div>
+            <button type="button" class="btn primary" id="btnAddLineToOrder" style="padding:9px 18px; font-weight:750; white-space:nowrap;">Aggiungi</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current items table -->
+      <div class="details-table-wrap">
+        <table class="details-table">
+          <thead>
+            <tr>
+              <th style="width:110px;">Codice</th>
+              <th>Descrizione</th>
+              <th class="num" style="width:65px;">Q.tà</th>
+              <th class="num" style="width:95px;">Listino Cad.</th>
+              <th class="num" style="width:80px;">Sconto</th>
+              <th class="num" style="width:100px;">Netto Cad.</th>
+              <th class="num" style="width:110px;">Totale Riga</th>
+              <th style="width:60px; text-align:center;">Rimuovi</th>
+            </tr>
+          </thead>
+          <tbody id="editLinesTableBody">
+            <!-- populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid #e2e8f0; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:1rem; font-weight:750; color:#1e293b;">
+          Imponibile Articoli: <span id="editLinesTotalNet" style="color:#0284c7;">€ 0,00</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn secondary" onclick="$('editOrderLinesModal').close()">Annulla</button>
+          <button type="button" class="btn primary" id="btnSaveOrderLinesToCloud" style="background:#0284c7; font-weight:750;">💾 Salva Articoli su Google Drive</button>
+        </div>
       </div>
     </div>
   </dialog>
@@ -1125,6 +1198,7 @@
           allOffers = offRes.offers;
         }
         if (prodRes?.products && Array.isArray(prodRes.products)) {
+          window.catalogProductsList = prodRes.products;
           window.catalogProductsMap = Object.fromEntries(prodRes.products.map(p => [p.code, p]));
         }
       } catch (e) {
@@ -1460,19 +1534,42 @@
 
     function getOrderLines(ord) {
       if (!ord) return [];
-      let lines = ord.payload?.lines || [];
-      if ((!lines || lines.length === 0) && (ord.origin_offer_id || ord.payload?.convertedFromOffer)) {
-        const offNum = ord.origin_offer_id || ord.payload?.convertedFromOffer;
+      let p = ord.payload;
+      if (typeof p === 'string' && p.trim().startsWith('{')) {
+        try { p = JSON.parse(p); } catch {}
+      }
+      let lines = ord.lines || p?.lines || [];
+      if ((!lines || lines.length === 0) && (ord.origin_offer_id || ord.payload?.convertedFromOffer || p?.convertedFromOffer)) {
+        const offNum = ord.origin_offer_id || ord.payload?.convertedFromOffer || p?.convertedFromOffer;
         const matched = allOffers.find(o => o.number === offNum || o.id === offNum || o.offerNumber === offNum);
         if (matched?.payload?.lines && matched.payload.lines.length > 0) {
           lines = matched.payload.lines;
+        } else if (matched?.lines && matched.lines.length > 0) {
+          lines = matched.lines;
         }
       }
-      if ((!lines || lines.length === 0) && Array.isArray(ord.payload?.items)) {
-        lines = ord.payload.items;
+      if ((!lines || lines.length === 0) && Array.isArray(p?.items)) {
+        lines = p.items;
       }
-      if ((!lines || lines.length === 0) && Array.isArray(ord.payload?.products)) {
-        lines = ord.payload.products;
+      if ((!lines || lines.length === 0) && Array.isArray(p?.products)) {
+        lines = p.products;
+      }
+      if ((!lines || lines.length === 0) && typeof ord.notes === 'string' && ord.notes.trim().startsWith('{')) {
+        try {
+          const parsedNotes = JSON.parse(ord.notes);
+          if (parsedNotes?.lines?.length) lines = parsedNotes.lines;
+        } catch {}
+      }
+      if (!lines || lines.length === 0) {
+        try {
+          const num = ord.order_number || ord.number || ord.orderNumber || ord.id;
+          const locStr = localStorage.getItem(`submission-${num}`) || localStorage.getItem(`submission-payload-${num}`);
+          if (locStr) {
+            const loc = JSON.parse(locStr);
+            if (loc?.payload?.lines?.length) lines = loc.payload.lines;
+            else if (loc?.lines?.length) lines = loc.lines;
+          }
+        } catch {}
       }
       return lines || [];
     }
@@ -1596,8 +1693,16 @@
         if (!lines || lines.length === 0) {
           tbody.innerHTML = `
             <tr>
-              <td colspan="8" style="text-align:center; padding:28px; color:var(--muted);">
-                <em>Nessuna riga articolo dettagliata trovata per questo ordine. Totale complessivo registrato: <strong>${euro(ord.total)}</strong>.</em>
+              <td colspan="8" style="text-align:center; padding:32px 18px; color:var(--muted);">
+                <div style="font-size:1.05rem; font-weight:700; color:#0f172a; margin-bottom:6px;">
+                  ⚠️ Nessuna riga articolo dettagliata registrata nel foglio per questo ordine
+                </div>
+                <div style="font-size:.88rem; color:#64748b; margin-bottom:14px;">
+                  Totale documento registrato: <strong>${euro(ord.total)}</strong>
+                </div>
+                <button type="button" class="btn secondary btn-sm" onclick="openEditOrderLinesModal('${escapeHtml(ord.id || ord.number)}')" style="font-weight:700; color:#0284c7; border-color:#7dd3fc; background:#f0f9ff; padding:8px 16px;">
+                  ➕ Inserisci / Associa Articoli per questo Ordine
+                </button>
               </td>
             </tr>
           `;
@@ -1672,6 +1777,10 @@
           btnApprove.style.display = 'none';
         }
 
+        $('btnDetailEditLines').onclick = () => {
+          $('orderDetailsModal').close();
+          openEditOrderLinesModal(ord.id || ord.number);
+        };
         $('btnDetailOpenStatus').onclick = () => {
           $('orderDetailsModal').close();
           openStatusModal(ord.id || ord.number);
@@ -1689,6 +1798,159 @@
         toast(`Errore: ${err.message}`);
       }
     }
+
+    // Modal management for order lines (Picking / DDT articles editor)
+    let currentEditingOrderId = null;
+    let tempEditingLines = [];
+
+    function openEditOrderLinesModal(orderId) {
+      const ord = allOrders.find(o => o.id === orderId || o.number === orderId);
+      if (!ord) return;
+      currentEditingOrderId = orderId;
+      tempEditingLines = JSON.parse(JSON.stringify(getOrderLines(ord)));
+
+      $('editLinesModalTitle').textContent = `Articoli Ordine ${ord.number}`;
+      $('editLinesModalSubtitle').textContent = `Cliente: ${ord.customer_name || 'N/D'} · Totale attuale registrato: ${euro(ord.total)}`;
+
+      const sel = $('editLineProductSelect');
+      if (sel.options.length <= 1) {
+        const prods = (window.catalogProductsList && window.catalogProductsList.length > 0)
+          ? window.catalogProductsList
+          : Object.values(window.catalogProductsMap || {});
+        prods.sort((a, b) => String(a.code || '').localeCompare(String(b.code || '')));
+        for (const p of prods) {
+          const opt = document.createElement('option');
+          opt.value = p.code;
+          opt.textContent = `${p.code} - ${p.description || ''} (${euro(p.price)})`;
+          sel.appendChild(opt);
+        }
+      }
+
+      sel.value = '';
+      $('editLineQty').value = '1';
+      $('editLinePrice').value = '0.00';
+      $('editLineDiscount').value = '0';
+
+      sel.onchange = () => {
+        const prod = (window.catalogProductsMap && window.catalogProductsMap[sel.value]) || {};
+        $('editLinePrice').value = (Number(prod.price) || 0).toFixed(2);
+      };
+
+      renderTempEditingLines();
+      $('editOrderLinesModal').showModal();
+    }
+
+    function renderTempEditingLines() {
+      const tbody = $('editLinesTableBody');
+      if (!tempEditingLines.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:24px; color:var(--muted);">
+              Nessun articolo inserito. Seleziona un prodotto dal listino sopra per aggiungerlo all'ordine.
+            </td>
+          </tr>
+        `;
+        $('editLinesTotalNet').textContent = euro(0);
+        return;
+      }
+
+      let totalNet = 0;
+      tbody.innerHTML = tempEditingLines.map((l, idx) => {
+        const row = computeLineDetails(l);
+        totalNet += row.lineNetTotal;
+        return `
+          <tr>
+            <td><strong style="color:var(--navy); font-family:monospace;">${escapeHtml(row.code)}</strong></td>
+            <td><div style="font-weight:600; color:#1e293b;">${escapeHtml(row.desc)}</div></td>
+            <td class="num" style="font-weight:750;">${row.qty}</td>
+            <td class="num">${row.listPrice > 0 ? euro(row.listPrice) : '—'}</td>
+            <td class="num">${escapeHtml(row.discountStr)}</td>
+            <td class="num" style="color:#0369a1; font-weight:600;">${euro(row.unitNet)}</td>
+            <td class="num" style="font-weight:800; color:var(--navy);">${euro(row.lineNetTotal)}</td>
+            <td style="text-align:center;">
+              <button type="button" class="icon-btn" style="color:#ef4444;" onclick="removeTempLine(${idx})" title="Rimuovi riga">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      $('editLinesTotalNet').textContent = euro(totalNet);
+    }
+
+    function removeTempLine(idx) {
+      tempEditingLines.splice(idx, 1);
+      renderTempEditingLines();
+    }
+
+    $('btnAddLineToOrder').onclick = () => {
+      const code = $('editLineProductSelect').value.trim();
+      if (!code) {
+        toast('Seleziona un prodotto dal listino');
+        return;
+      }
+      const prod = (window.catalogProductsMap && window.catalogProductsMap[code]) || {};
+      const qty = parseInt($('editLineQty').value, 10) || 1;
+      const price = parseFloat($('editLinePrice').value) || Number(prod.price) || 0;
+      const discount = parseFloat($('editLineDiscount').value) || 0;
+      const discounts = discount > 0 ? [discount] : [];
+
+      tempEditingLines.push({
+        code,
+        description: prod.description || code,
+        quantity: qty,
+        listPrice: price,
+        discounts,
+        markup: 0,
+        vat: Number(prod.vat) || 22
+      });
+
+      $('editLineProductSelect').value = '';
+      $('editLineQty').value = '1';
+      $('editLinePrice').value = '0.00';
+      $('editLineDiscount').value = '0';
+      renderTempEditingLines();
+    };
+
+    $('btnSaveOrderLinesToCloud').onclick = async () => {
+      if (!currentEditingOrderId) return;
+      const btn = $('btnSaveOrderLinesToCloud');
+      btn.disabled = true;
+      btn.textContent = 'Salvataggio su Google Sheets…';
+      try {
+        const res = await fetch('/api/orders/update-status', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('oa_session_token') || ''),
+            'x-oa-user': encodeURIComponent(localStorage.getItem('oa_session_user') || '')
+          },
+          body: JSON.stringify({
+            orderId: currentEditingOrderId,
+            lines: tempEditingLines
+          })
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || `HTTP ${res.status}`);
+        }
+        
+        // Update local memory object
+        const ord = allOrders.find(o => o.id === currentEditingOrderId || o.number === currentEditingOrderId);
+        if (ord) {
+          ord.lines = tempEditingLines;
+          ord.payload = { ...(ord.payload || {}), lines: tempEditingLines };
+        }
+        
+        $('editOrderLinesModal').close();
+        toast('Articoli salvati con successo su Google Drive!');
+        renderOrders();
+        if (ord) openOrderDetailsModal(ord.id || ord.number);
+      } catch (err) {
+        toast(`Errore salvataggio: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Salva Articoli su Google Drive';
+      }
+    };
 
     // Print Picking List for warehouse staff
     function openPrintPicking(orderId) {

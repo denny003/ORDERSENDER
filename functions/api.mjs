@@ -955,7 +955,7 @@ async function createDoc(tab, body, user) {
           row = [
             id,
             number,
-            body.originOfferId || '',
+            body.originOfferId || body.payload?.originOfferId || body.payload?.convertedFromOffer || '',
             now,
             now,
             agentCode,
@@ -976,7 +976,8 @@ async function createDoc(tab, body, user) {
             '',
             '',
             'No',
-            now
+            now,
+            payloadStr
           ];
         }
       } else {

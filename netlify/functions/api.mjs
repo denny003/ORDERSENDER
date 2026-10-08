@@ -278,6 +278,17 @@ async function clearRange(id, range) {
   });
 }
 
+function colToLetter(colIndex) {
+  let temp = colIndex + 1;
+  let letter = '';
+  while (temp > 0) {
+    let mod = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + mod) + letter;
+    temp = Math.floor((temp - mod) / 26);
+  }
+  return letter || 'A';
+}
+
 // -------------------------------------------------------------
 // CENTRAL CLOUD CONFIGURATION (GOOGLE SHEETS BACKED)
 // -------------------------------------------------------------
@@ -761,7 +772,7 @@ async function fetchCustomersData(customId, customTab, user = null) {
   const id = cleanEnvId(customId) || runtimeConfig.customers.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.customers.spreadsheetId;
   const tab = customTab || runtimeConfig.customers.tab || OFFICIAL_SYSTEM_SPREADSHEETS.customers.tab || 'clienti';
   try {
-    const rows = await readRange(id, `'${tab}'!A1:Z500`);
+    const rows = await readRange(id, `'${tab}'!A1:AZ2000`);
     if (rows.length > 1) {
       const header = rows[0].map(c => String(c).toLowerCase().trim());
       const col = name => header.findIndex(h => h.includes(name));
@@ -784,6 +795,21 @@ async function fetchCustomersData(customId, customTab, user = null) {
       const taxIdx = col('codice fiscale') >= 0 ? col('codice fiscale') : col('cf');
       const payIdx = col('pagamento') >= 0 ? col('pagamento') : (col('payment') >= 0 ? col('payment') : col('condizioni'));
 
+      // Colonne sconti e note in chiaro (visibili e modificabili dall'amministratore su Google Drive)
+      const maxDiscIdx = col('sconto max') >= 0 ? col('sconto max') : (col('sconto_max') >= 0 ? col('sconto_max') : (col('sconto massimo') >= 0 ? col('sconto massimo') : col('max sconto')));
+      const discTableIdx = col('tabella sconti') >= 0 ? col('tabella sconti') : (col('tabella_sconti') >= 0 ? col('tabella_sconti') : (col('tabella') >= 0 ? col('tabella') : col('listino sconti')));
+      const disc1Idx = col('sconto 1') >= 0 ? col('sconto 1') : (col('sconto_1') >= 0 ? col('sconto_1') : (col('sc 1') >= 0 ? col('sc 1') : col('sc1')));
+      const disc2Idx = col('sconto 2') >= 0 ? col('sconto 2') : (col('sconto_2') >= 0 ? col('sconto_2') : (col('sc 2') >= 0 ? col('sc 2') : col('sc2')));
+      const disc3Idx = col('sconto 3') >= 0 ? col('sconto 3') : (col('sconto_3') >= 0 ? col('sconto_3') : (col('sc 3') >= 0 ? col('sc 3') : col('sc3')));
+      const disc4Idx = col('sconto 4') >= 0 ? col('sconto 4') : (col('sconto_4') >= 0 ? col('sconto_4') : (col('sc 4') >= 0 ? col('sc 4') : col('sc4')));
+      const notesIdx = col('note anagrafica') >= 0 ? col('note anagrafica') : (col('note cliente') >= 0 ? col('note cliente') : col('note'));
+
+      const parseDisc = val => {
+        if (val == null || String(val).trim() === '') return 0;
+        const n = parseFloat(String(val).replace('%', '').replace(',', '.').trim());
+        return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
+      };
+
       let customers = [];
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
@@ -791,6 +817,9 @@ async function fetchCustomersData(customId, customTab, user = null) {
         const codeVal = String(r[codeIdx]).replace(/\.0$/, '').trim();
         const agentVal = String(r[agentIdx] || '').trim();
         const agentId = agentVal ? normalizeAgentId(agentVal) : 'UNASSIGNED';
+
+        const maxDiscRaw = maxDiscIdx >= 0 && r[maxDiscIdx] != null ? String(r[maxDiscIdx]).trim() : '';
+        const maxDiscParsed = maxDiscRaw !== '' ? parseDisc(maxDiscRaw) : null;
 
         customers.push({
           id: codeVal,
@@ -812,7 +841,14 @@ async function fetchCustomersData(customId, customTab, user = null) {
           bank: bankIdx >= 0 ? String(r[bankIdx] || '').trim() : '',
           vatNumber: vatIdx >= 0 ? String(r[vatIdx] || '').trim() : '',
           taxCode: taxIdx >= 0 ? String(r[taxIdx] || '').trim() : '',
-          payment: payIdx >= 0 ? String(r[payIdx] || '').trim() : ''
+          payment: payIdx >= 0 ? String(r[payIdx] || '').trim() : '',
+          maxDiscount: maxDiscParsed,
+          discountTable: discTableIdx >= 0 ? String(r[discTableIdx] || '').trim() : '',
+          discount1: disc1Idx >= 0 ? parseDisc(r[disc1Idx]) : 0,
+          discount2: disc2Idx >= 0 ? parseDisc(r[disc2Idx]) : 0,
+          discount3: disc3Idx >= 0 ? parseDisc(r[disc3Idx]) : 0,
+          discount4: disc4Idx >= 0 ? parseDisc(r[disc4Idx]) : 0,
+          notes: notesIdx >= 0 ? String(r[notesIdx] || '').trim() : ''
         });
       }
 
@@ -1235,7 +1271,7 @@ async function ensureHeader(tab, headers, customRegId) {
 async function listDocs(tab, user, customId) {
   const regId = cleanEnvId(customId) || runtimeConfig.repository.spreadsheetId || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
   try {
-    const rawRows = await readRange(regId, `'${tab}'!A1:Z1000`);
+    const rawRows = await readRange(regId, `'${tab}'!A1:AZ2000`);
     if (!rawRows || !rawRows.length) return [];
 
     // Dynamically locate header row within first 10 rows
@@ -1281,7 +1317,8 @@ async function listDocs(tab, user, customId) {
     const statusIdx = findCol(['stato applicazione', 'stato avanzamento', 'status']);
     const outcomeIdx = findCol(['esito azienda', 'esito', 'decisione']);
     const verIdx = findCol(['versione', 'version']);
-    const notesIdx = findCol(['nota azienda', 'note operative', 'note', 'payload_json']);
+    const notesIdx = findCol(['nota azienda', 'note operative', 'note'], ['payload']);
+    const payloadColIdx = findCol(['payload_json', 'payload']);
     const origOfferIdx = findCol(['id offerta origine', 'offerta origine']);
 
     const ddtNumIdx = findCol(['numero bolla / ddt', 'numero bolla', 'numero ddt', 'ddt']);
@@ -1343,16 +1380,27 @@ async function listDocs(tab, user, customId) {
       const delivDate = delivDateIdx >= 0 && r[delivDateIdx] != null ? cleanCell(r[delivDateIdx]) : '';
 
       let payloadObj = null;
-      for (let k = r.length - 1; k >= 0; k--) {
-        const val = cleanCell(r[k]);
+      if (payloadColIdx >= 0 && r[payloadColIdx] != null) {
+        const val = cleanCell(r[payloadColIdx]);
         if (typeof val === 'string' && val.startsWith('{')) {
           try {
             const parsed = JSON.parse(val);
-            if (parsed && typeof parsed === 'object') {
-              payloadObj = parsed;
-              break;
-            }
+            if (parsed && typeof parsed === 'object') payloadObj = parsed;
           } catch {}
+        }
+      }
+      if (!payloadObj) {
+        for (let k = r.length - 1; k >= 0; k--) {
+          const val = cleanCell(r[k]);
+          if (typeof val === 'string' && val.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(val);
+              if (parsed && typeof parsed === 'object') {
+                payloadObj = parsed;
+                break;
+              }
+            } catch {}
+          }
         }
       }
 
@@ -1460,8 +1508,11 @@ async function createDoc(tab, body, user, customId) {
   const agentName = user?.name || body.agentName || knownAgentNames[agentCode] || 'Agente';
   const customerId = String(body.customerId || '').trim();
   const customerName = String(body.customerName || '').trim();
-  const total = Number(body.total) || 0;
-  const payloadStr = JSON.stringify(body.payload || {});
+  const payloadData = body.payload ? { ...body.payload } : {};
+  if ((!payloadData.lines || !payloadData.lines.length) && Array.isArray(body.lines) && body.lines.length > 0) {
+    payloadData.lines = body.lines;
+  }
+  const payloadStr = JSON.stringify(payloadData);
 
   try {
     const rawRows = await readRange(regId, `'${tab}'!A1:Z10`);
@@ -1669,9 +1720,16 @@ async function createCustomer(body, user, customId) {
   const iban = String(body.iban || '').trim();
   const bank = String(body.bank || body.banca || '').trim();
   const payment = String(body.payment || body.pagamento || '').trim();
+  const maxDiscount = body.maxDiscount !== undefined && body.maxDiscount !== '' && body.maxDiscount !== null ? String(body.maxDiscount).trim() : '';
+  const discountTable = String(body.discountTable || '').trim();
+  const discount1 = body.discount1 !== undefined && body.discount1 !== '' && body.discount1 !== null ? String(body.discount1).trim() : '';
+  const discount2 = body.discount2 !== undefined && body.discount2 !== '' && body.discount2 !== null ? String(body.discount2).trim() : '';
+  const discount3 = body.discount3 !== undefined && body.discount3 !== '' && body.discount3 !== null ? String(body.discount3).trim() : '';
+  const discount4 = body.discount4 !== undefined && body.discount4 !== '' && body.discount4 !== null ? String(body.discount4).trim() : '';
+  const notes = String(body.notes || '').trim();
 
   try {
-    const rows = await readRange(custSpreadsheetId, `'${tab}'!A1:Z500`);
+    const rows = await readRange(custSpreadsheetId, `'${tab}'!A1:AZ2000`);
     if (!rows || rows.length === 0) {
       return json(500, { error: `Impossibile accedere al foglio "${tab}"` });
     }
@@ -1703,13 +1761,36 @@ async function createCustomer(body, user, customId) {
     const bankIdx = col(['banca', 'appoggio']);
     const vatIdx = col(['partita iva', 'p.iva', 'piva']);
     const taxIdx = col(['codice fiscale', 'cf']);
-    let payIdx = col(['pagamento', 'payment', 'condizioni']);
+    let payIdx = col(['condizioni pagamento', 'pagamento', 'payment', 'condizioni']);
+    let maxDiscIdx = col(['sconto max', 'sconto_max', 'sconto massimo', 'max sconto']);
+    let discTableIdx = col(['tabella sconti', 'tabella_sconti', 'tabella', 'listino sconti']);
+    let disc1Idx = col(['sconto 1', 'sconto_1', 'sc 1', 'sc1']);
+    let disc2Idx = col(['sconto 2', 'sconto_2', 'sc 2', 'sc2']);
+    let disc3Idx = col(['sconto 3', 'sconto_3', 'sc 3', 'sc3']);
+    let disc4Idx = col(['sconto 4', 'sconto_4', 'sc 4', 'sc4']);
+    let notesIdx = col(['note anagrafica', 'note cliente', 'note']);
 
-    // Se il pagamento è indicato ma non c'è la colonna, aggiungila
-    if (payment && payIdx < 0) {
-      payIdx = header.length;
-      header.push('condizioni pagamento');
-      await updateRow(custSpreadsheetId, `'${tab}'!A1:Z1`, [header]).catch(() => {});
+    let headerChanged = false;
+    const ensureCol = (currIdx, headerLabel) => {
+      if (currIdx >= 0) return currIdx;
+      const newIdx = header.length;
+      header.push(headerLabel);
+      headerChanged = true;
+      return newIdx;
+    };
+
+    if (payment) payIdx = ensureCol(payIdx, 'condizioni pagamento');
+    if (maxDiscount !== '') maxDiscIdx = ensureCol(maxDiscIdx, 'sconto max');
+    if (discountTable) discTableIdx = ensureCol(discTableIdx, 'tabella sconti');
+    if (discount1 !== '') disc1Idx = ensureCol(disc1Idx, 'sconto 1');
+    if (discount2 !== '') disc2Idx = ensureCol(disc2Idx, 'sconto 2');
+    if (discount3 !== '') disc3Idx = ensureCol(disc3Idx, 'sconto 3');
+    if (discount4 !== '') disc4Idx = ensureCol(disc4Idx, 'sconto 4');
+    if (notes) notesIdx = ensureCol(notesIdx, 'note anagrafica');
+
+    if (headerChanged) {
+      const lastHeaderCol = colToLetter(header.length - 1);
+      await updateRow(custSpreadsheetId, `'${tab}'!A1:${lastHeaderCol}1`, [header]).catch(() => {});
     }
 
     // Calcola il codice progressivo massimo
@@ -1757,6 +1838,13 @@ async function createCustomer(body, user, customId) {
     if (vatIdx >= 0 && (tax || body.vat)) newRow[vatIdx] = body.vat || tax;
     if (taxIdx >= 0 && tax) newRow[taxIdx] = tax;
     if (payIdx >= 0 && payment) newRow[payIdx] = payment;
+    if (maxDiscIdx >= 0 && maxDiscount !== '') newRow[maxDiscIdx] = maxDiscount;
+    if (discTableIdx >= 0 && discountTable) newRow[discTableIdx] = discountTable;
+    if (disc1Idx >= 0 && discount1 !== '') newRow[disc1Idx] = discount1;
+    if (disc2Idx >= 0 && discount2 !== '') newRow[disc2Idx] = discount2;
+    if (disc3Idx >= 0 && discount3 !== '') newRow[disc3Idx] = discount3;
+    if (disc4Idx >= 0 && discount4 !== '') newRow[disc4Idx] = discount4;
+    if (notesIdx >= 0 && notes) newRow[notesIdx] = notes;
 
     // Trova la prima riga vuota
     let nextRow = -1;
@@ -1774,10 +1862,11 @@ async function createCustomer(body, user, customId) {
       nextRow = rows.length + 1;
     }
 
+    const lastColLetter = colToLetter(newRow.length - 1);
     try {
-      await updateRow(custSpreadsheetId, `'${tab}'!A${nextRow}:Z${nextRow}`, [newRow]);
+      await updateRow(custSpreadsheetId, `'${tab}'!A${nextRow}:${lastColLetter}${nextRow}`, [newRow]);
     } catch {
-      await append(custSpreadsheetId, `'${tab}'!A:Z`, [newRow]);
+      await append(custSpreadsheetId, `'${tab}'!A:AZ`, [newRow]);
     }
 
     const customerObj = {
@@ -1800,7 +1889,14 @@ async function createCustomer(body, user, customId) {
       bank,
       payment,
       vatNumber: body.vat || tax,
-      taxCode: tax
+      taxCode: tax,
+      maxDiscount: maxDiscount !== '' ? parseFloat(maxDiscount.replace('%','').replace(',','.')) || null : null,
+      discountTable,
+      discount1: discount1 !== '' ? parseFloat(discount1.replace('%','').replace(',','.')) || 0 : 0,
+      discount2: discount2 !== '' ? parseFloat(discount2.replace('%','').replace(',','.')) || 0 : 0,
+      discount3: discount3 !== '' ? parseFloat(discount3.replace('%','').replace(',','.')) || 0 : 0,
+      discount4: discount4 !== '' ? parseFloat(discount4.replace('%','').replace(',','.')) || 0 : 0,
+      notes
     };
 
     return json(201, { ok: true, customer: customerObj, rowNumber: nextRow });
@@ -1821,7 +1917,7 @@ async function updateCustomer(body, user, customId) {
   }
 
   try {
-    const rows = await readRange(custSpreadsheetId, `'${tab}'!A1:Z500`);
+    const rows = await readRange(custSpreadsheetId, `'${tab}'!A1:AZ2000`);
     if (!rows || rows.length <= 1) {
       return json(404, { error: 'Scheda clienti non accessibile o vuota' });
     }
@@ -1833,14 +1929,28 @@ async function updateCustomer(body, user, customId) {
     };
 
     const codeIdx = col(['codice', 'code']);
-    const nameIdx = col(['ragione', 'cliente', 'nome']);
-    let payIdx = col(['pagamento', 'payment', 'condizioni']);
+    const nameIdx = col(['ragione sociale', 'ragione', 'cliente', 'nome']);
+    const typeIdx = col(['tipo', 'attivit']);
+    const addressIdx = col(['indirizzo', 'via']);
+    const capIdx = col(['cap']);
+    const cityIdx = col(['citt']);
+    const pvIdx = col(['pv', 'prov']);
     const phoneIdx = col(['telefono', 'tel']);
     const mobileIdx = col(['cellulare', 'cell', 'mobile']);
     const emailIdx = col(['e-mail', 'email']);
     const sdiIdx = col(['sdi', 'univoco', 'destinatario']);
     const ibanIdx = col(['iban']);
     const bankIdx = col(['banca', 'appoggio']);
+    const vatIdx = col(['partita iva', 'p.iva', 'piva']);
+    const taxIdx = col(['codice fiscale', 'cf']);
+    let payIdx = col(['condizioni pagamento', 'pagamento', 'payment', 'condizioni']);
+    let maxDiscIdx = col(['sconto max', 'sconto_max', 'sconto massimo', 'max sconto']);
+    let discTableIdx = col(['tabella sconti', 'tabella_sconti', 'tabella', 'listino sconti']);
+    let disc1Idx = col(['sconto 1', 'sconto_1', 'sc 1', 'sc1']);
+    let disc2Idx = col(['sconto 2', 'sconto_2', 'sc 2', 'sc2']);
+    let disc3Idx = col(['sconto 3', 'sconto_3', 'sc 3', 'sc3']);
+    let disc4Idx = col(['sconto 4', 'sconto_4', 'sc 4', 'sc4']);
+    let notesIdx = col(['note anagrafica', 'note cliente', 'note']);
 
     let targetRowIdx = -1;
     for (let i = 1; i < rows.length; i++) {
@@ -1862,28 +1972,109 @@ async function updateCustomer(body, user, customId) {
       return json(404, { error: `Cliente "${customerId || customerName}" non trovato nel foglio` });
     }
 
-    // Se il pagamento è indicato ma la colonna non esiste ancora nel foglio, aggiungila nell'intestazione
-    if (body.payment !== undefined && payIdx < 0) {
-      payIdx = header.length;
-      header.push('condizioni pagamento');
-      await updateRow(custSpreadsheetId, `'${tab}'!A1:Z1`, [header]).catch(() => {});
+    let headerChanged = false;
+    const ensureCol = (currIdx, headerLabel) => {
+      if (currIdx >= 0) return currIdx;
+      const newIdx = header.length;
+      header.push(headerLabel);
+      headerChanged = true;
+      return newIdx;
+    };
+
+    if (body.payment !== undefined) payIdx = ensureCol(payIdx, 'condizioni pagamento');
+    if (body.maxDiscount !== undefined) maxDiscIdx = ensureCol(maxDiscIdx, 'sconto max');
+    if (body.discountTable !== undefined) discTableIdx = ensureCol(discTableIdx, 'tabella sconti');
+    if (body.discount1 !== undefined) disc1Idx = ensureCol(disc1Idx, 'sconto 1');
+    if (body.discount2 !== undefined) disc2Idx = ensureCol(disc2Idx, 'sconto 2');
+    if (body.discount3 !== undefined) disc3Idx = ensureCol(disc3Idx, 'sconto 3');
+    if (body.discount4 !== undefined) disc4Idx = ensureCol(disc4Idx, 'sconto 4');
+    if (body.notes !== undefined) notesIdx = ensureCol(notesIdx, 'note anagrafica');
+
+    if (headerChanged) {
+      const lastHeaderCol = colToLetter(header.length - 1);
+      await updateRow(custSpreadsheetId, `'${tab}'!A1:${lastHeaderCol}1`, [header]).catch(() => {});
     }
 
     const row = [...rows[targetRowIdx]];
     while (row.length < header.length) row.push('');
 
-    if (body.payment !== undefined && payIdx >= 0) row[payIdx] = String(body.payment || '').trim();
-    if (body.mobile !== undefined && mobileIdx >= 0) row[mobileIdx] = String(body.mobile || '').trim();
+    if (body.name !== undefined && nameIdx >= 0) row[nameIdx] = String(body.name || '').trim();
+    if (body.type !== undefined && typeIdx >= 0) row[typeIdx] = String(body.type || '').trim();
+    if (body.address !== undefined && addressIdx >= 0) row[addressIdx] = String(body.address || '').trim();
+    if (body.postalCode !== undefined && capIdx >= 0) row[capIdx] = String(body.postalCode || '').trim();
+    if (body.city !== undefined && cityIdx >= 0) row[cityIdx] = String(body.city || '').trim();
+    if (body.province !== undefined && pvIdx >= 0) row[pvIdx] = String(body.province || '').trim().toUpperCase();
     if (body.phone !== undefined && phoneIdx >= 0) row[phoneIdx] = String(body.phone || '').trim();
+    if (body.mobile !== undefined && mobileIdx >= 0) row[mobileIdx] = String(body.mobile || '').trim();
     if (body.email !== undefined && emailIdx >= 0) row[emailIdx] = String(body.email || '').trim();
-    if (body.sdi !== undefined && sdiIdx >= 0) row[sdiIdx] = String(body.sdi || '').trim();
-    if (body.iban !== undefined && ibanIdx >= 0) row[ibanIdx] = String(body.iban || '').trim();
+    if (body.sdi !== undefined && sdiIdx >= 0) row[sdiIdx] = String(body.sdi || '').trim().toUpperCase();
+    if (body.iban !== undefined && ibanIdx >= 0) row[ibanIdx] = String(body.iban || '').trim().replace(/\s+/g, '').toUpperCase();
     if (body.bank !== undefined && bankIdx >= 0) row[bankIdx] = String(body.bank || '').trim();
+    if (body.vatNumber !== undefined && vatIdx >= 0) row[vatIdx] = String(body.vatNumber || '').trim();
+    if (body.taxCode !== undefined && taxIdx >= 0) row[taxIdx] = String(body.taxCode || '').trim();
+    if (body.payment !== undefined && payIdx >= 0) row[payIdx] = String(body.payment || '').trim();
+    if (body.maxDiscount !== undefined && maxDiscIdx >= 0) {
+      row[maxDiscIdx] = (body.maxDiscount !== null && body.maxDiscount !== '') ? String(body.maxDiscount).trim() : '';
+    }
+    if (body.discountTable !== undefined && discTableIdx >= 0) {
+      row[discTableIdx] = String(body.discountTable || '').trim();
+    }
+    if (body.discount1 !== undefined && disc1Idx >= 0) {
+      row[disc1Idx] = (body.discount1 !== null && body.discount1 !== '') ? String(body.discount1).trim() : '';
+    }
+    if (body.discount2 !== undefined && disc2Idx >= 0) {
+      row[disc2Idx] = (body.discount2 !== null && body.discount2 !== '') ? String(body.discount2).trim() : '';
+    }
+    if (body.discount3 !== undefined && disc3Idx >= 0) {
+      row[disc3Idx] = (body.discount3 !== null && body.discount3 !== '') ? String(body.discount3).trim() : '';
+    }
+    if (body.discount4 !== undefined && disc4Idx >= 0) {
+      row[disc4Idx] = (body.discount4 !== null && body.discount4 !== '') ? String(body.discount4).trim() : '';
+    }
+    if (body.notes !== undefined && notesIdx >= 0) {
+      row[notesIdx] = String(body.notes || '').trim();
+    }
 
     const sheetRowNum = targetRowIdx + 1;
-    await updateRow(custSpreadsheetId, `'${tab}'!A${sheetRowNum}:Z${sheetRowNum}`, [row]);
+    const lastRowCol = colToLetter(row.length - 1);
+    await updateRow(custSpreadsheetId, `'${tab}'!A${sheetRowNum}:${lastRowCol}${sheetRowNum}`, [row]);
 
-    return json(200, { ok: true, message: 'Dati cliente aggiornati su Google Sheets', customerId: customerId || customerName, payment: body.payment, mobile: body.mobile });
+    const parseNum = val => {
+      if (val == null || String(val).trim() === '') return 0;
+      const n = parseFloat(String(val).replace('%', '').replace(',', '.').trim());
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const maxValRaw = maxDiscIdx >= 0 ? row[maxDiscIdx] : '';
+    const updatedCustomer = {
+      id: customerId || (codeIdx >= 0 ? String(row[codeIdx] || '') : ''),
+      code: customerId || (codeIdx >= 0 ? String(row[codeIdx] || '') : ''),
+      name: nameIdx >= 0 ? String(row[nameIdx] || '') : customerName,
+      type: typeIdx >= 0 ? String(row[typeIdx] || '') : '',
+      activity: typeIdx >= 0 ? String(row[typeIdx] || '') : '',
+      address: addressIdx >= 0 ? String(row[addressIdx] || '') : '',
+      postalCode: capIdx >= 0 ? String(row[capIdx] || '') : '',
+      city: cityIdx >= 0 ? String(row[cityIdx] || '') : '',
+      province: pvIdx >= 0 ? String(row[pvIdx] || '') : '',
+      phone: phoneIdx >= 0 ? String(row[phoneIdx] || '') : '',
+      mobile: mobileIdx >= 0 ? String(row[mobileIdx] || '') : '',
+      email: emailIdx >= 0 ? String(row[emailIdx] || '') : '',
+      sdi: sdiIdx >= 0 ? String(row[sdiIdx] || '') : '',
+      iban: ibanIdx >= 0 ? String(row[ibanIdx] || '') : '',
+      bank: bankIdx >= 0 ? String(row[bankIdx] || '') : '',
+      vatNumber: vatIdx >= 0 ? String(row[vatIdx] || '') : '',
+      taxCode: taxIdx >= 0 ? String(row[taxIdx] || '') : '',
+      payment: payIdx >= 0 ? String(row[payIdx] || '') : '',
+      maxDiscount: maxValRaw !== '' && maxValRaw != null ? parseNum(maxValRaw) : null,
+      discountTable: discTableIdx >= 0 ? String(row[discTableIdx] || '') : '',
+      discount1: disc1Idx >= 0 ? parseNum(row[disc1Idx]) : 0,
+      discount2: disc2Idx >= 0 ? parseNum(row[disc2Idx]) : 0,
+      discount3: disc3Idx >= 0 ? parseNum(row[disc3Idx]) : 0,
+      discount4: disc4Idx >= 0 ? parseNum(row[disc4Idx]) : 0,
+      notes: notesIdx >= 0 ? String(row[notesIdx] || '') : ''
+    };
+
+    return json(200, { ok: true, message: 'Dati cliente aggiornati su Google Sheets', customer: updatedCustomer });
   } catch (err) {
     console.error('Update customer error:', err);
     return json(500, { error: err.message });

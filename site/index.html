@@ -977,9 +977,9 @@
           <span>Offerta di origine</span>
           <strong>${item.origin_offer_id}</strong>
         </div>` : ''}
-        ${item.payload?.lines?.length ? `
+        ${((item.payload?.lines && item.payload.lines.length) || (item.lines && item.lines.length)) ? `
         <div style="margin-top:12px;">
-          <strong style="display:block; font-size:.85rem; margin-bottom:6px; color:#0f172a;">Articoli inclusi (${item.payload.lines.length}):</strong>
+          <strong style="display:block; font-size:.85rem; margin-bottom:6px; color:#0f172a;">Articoli inclusi (${(item.payload?.lines || item.lines).length}):</strong>
           <table style="width:100%; border-collapse:collapse; font-size:.78rem; background:#fff; border-radius:6px; overflow:hidden; border:1px solid #e2e8f0;">
             <thead style="background:#f8fafc; text-align:left; color:#475569;">
               <tr>
@@ -990,7 +990,7 @@
               </tr>
             </thead>
             <tbody>
-              ${item.payload.lines.map(l => `
+              ${(item.payload?.lines || item.lines).map(l => `
                 <tr style="border-top:1px solid #f1f5f9;">
                   <td style="padding:6px 8px; font-weight:600; color:#1e293b;">${l.code}</td>
                   <td style="padding:6px 8px; color:#334155;">${l.description}</td>

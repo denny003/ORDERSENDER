@@ -100,10 +100,12 @@ const currentAgent = () => {
   return AGENTS[0] || { id: 'AG01', name: 'Agente', role: 'Agente', discountLimit: 40 };
 };
 
-const maxAllowedDiscount = (product) => {
+const maxAllowedDiscount = (product, customer) => {
+  const cust = customer || (typeof customerData === 'function' ? customerData() : null);
   const agLimit = currentAgent()?.discountLimit != null ? Number(currentAgent().discountLimit) : 40;
   const prodLimit = product.maxDiscount != null ? Number(product.maxDiscount) : 100;
-  return Math.min(prodLimit, agLimit > 0 ? agLimit : 100);
+  const custLimit = (cust && cust.maxDiscount != null && Number(cust.maxDiscount) > 0) ? Number(cust.maxDiscount) : 100;
+  return Math.min(prodLimit, agLimit > 0 ? agLimit : 100, custLimit);
 };
 
 const nowLabel = iso => iso ? new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso)) : '—';
@@ -474,10 +476,159 @@ function showCustomer() {
   if (c.sdi) extraBadges.push(`SDI: ${c.sdi}`);
   if (c.iban) extraBadges.push(`IBAN: ${c.iban}`);
   if (c.bank) extraBadges.push(`Banca: ${c.bank}`);
+  
+  // Politica Sconti (Google Drive)
+  const maxDisStr = c.maxDiscount != null ? `🏷️ Sconto Max: ${c.maxDiscount}%` : `🏷️ Limite Agente: ${currentAgent()?.discountLimit || 40}%`;
+  extraBadges.push(maxDisStr);
+  if (c.discountTable) extraBadges.push(`📊 Tabella: ${c.discountTable}`);
+  const clientDiscounts = [c.discount1, c.discount2, c.discount3, c.discount4].filter(d => Number(d) > 0);
+  if (clientDiscounts.length > 0) {
+    extraBadges.push(`✂️ Sconti base: ${clientDiscounts.map(d => `${d}%`).join(' + ')}`);
+  }
+  if (c.notes) extraBadges.push(`📝 ${c.notes}`);
+
   const extraSpan = extraBadges.length > 0 ? `<span>${esc(extraBadges.join(' · '))}</span>` : '';
-  $('customerDetails').innerHTML = `<strong>${esc(c.name)}</strong><span>${esc([c.address, [c.postalCode, c.city, c.province].filter(Boolean).join(' ')].filter(Boolean).join(' · '))}</span><span>${esc([c.phone, c.mobile, c.email].filter(Boolean).join(' · ') || 'Contatti non disponibili')}</span>${extraSpan}`;
+
+  const quickActionsHtml = `
+    <div style="margin-top:6px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+      <button type="button" class="btn secondary compact-btn" id="cardCustomerQuickBtn" style="font-size:0.75rem; padding:3px 8px;" title="Visualizza e modifica scheda completa">✏️ Scheda Anagrafica & Sconti</button>
+      ${(clientDiscounts.length > 0 && items.length > 0) ? `<button type="button" class="btn secondary compact-btn" id="applyCustomerDiscountsBtn" style="font-size:0.75rem; padding:3px 8px;" title="Applica sconti cliente a tutti gli articoli inseriti">🔄 Applica sconti cliente (${clientDiscounts.map(d => `${d}%`).join('+')})</button>` : ''}
+    </div>
+  `;
+
+  $('customerDetails').innerHTML = `<strong>${esc(c.name)}</strong><span>${esc([c.address, [c.postalCode, c.city, c.province].filter(Boolean).join(' ')].filter(Boolean).join(' · '))}</span><span>${esc([c.phone, c.mobile, c.email].filter(Boolean).join(' · ') || 'Contatti non disponibili')}</span>${extraSpan}${quickActionsHtml}`;
   $('customerDetails').classList.remove('hidden');
+
+  $('cardCustomerQuickBtn')?.addEventListener('click', () => openCustomerCard(c.id));
+  $('applyCustomerDiscountsBtn')?.addEventListener('click', () => applyCustomerDiscountsToItems());
+
   persistOffer();
+}
+
+function applyCustomerDiscountsToItems() {
+  const c = customerData();
+  if (!c || !items.length) return;
+  const base = [Number(c.discount1) || 0, Number(c.discount2) || 0, Number(c.discount3) || 0, Number(c.discount4) || 0];
+  items.forEach(it => {
+    const maxLimit = maxAllowedDiscount(it.product, c);
+    let ds = [...base];
+    if (effectiveDiscount(ds) > maxLimit + 0.0001) {
+      ds = [Math.min(maxLimit, ds[0]), 0, 0, 0];
+    }
+    it.discounts = ds;
+  });
+  renderOffer();
+  toast('Sconti cliente applicati a tutti gli articoli');
+}
+
+function openCustomerCard(customerId) {
+  const c = findClient(customerId || $('customerSelect').value);
+  if (!c || !c.name) {
+    toast('Seleziona prima un cliente');
+    return;
+  }
+
+  $('cardCustomerId').value = c.id || '';
+  if ($('cardCustomerCodeBadge')) $('cardCustomerCodeBadge').textContent = c.code || c.id || 'CLI';
+  $('cardCustomerName').value = c.name || '';
+  $('cardCustomerType').value = c.type || c.activity || '';
+  $('cardCustomerAddress').value = c.address || '';
+  $('cardCustomerCity').value = c.city || '';
+  $('cardCustomerCap').value = c.postalCode || '';
+  $('cardCustomerPv').value = c.province || '';
+  $('cardCustomerVat').value = c.vatNumber || '';
+  $('cardCustomerTax').value = c.taxCode || '';
+  $('cardCustomerSdi').value = c.sdi || '';
+  $('cardCustomerEmail').value = c.email || '';
+  $('cardCustomerPhone').value = c.phone || '';
+  $('cardCustomerMobile').value = c.mobile || '';
+  $('cardCustomerPayment').value = c.payment || '';
+  $('cardCustomerBank').value = c.bank || '';
+  $('cardCustomerIban').value = c.iban || '';
+
+  // Sconti & Politica commerciale
+  $('cardCustomerMaxDiscount').value = (c.maxDiscount != null && c.maxDiscount !== '') ? c.maxDiscount : '';
+  $('cardCustomerDiscountTable').value = c.discountTable || '';
+  $('cardCustomerDiscount1').value = (c.discount1 != null && c.discount1 !== '' && Number(c.discount1) > 0) ? c.discount1 : '';
+  $('cardCustomerDiscount2').value = (c.discount2 != null && c.discount2 !== '' && Number(c.discount2) > 0) ? c.discount2 : '';
+  $('cardCustomerDiscount3').value = (c.discount3 != null && c.discount3 !== '' && Number(c.discount3) > 0) ? c.discount3 : '';
+  $('cardCustomerDiscount4').value = (c.discount4 != null && c.discount4 !== '' && Number(c.discount4) > 0) ? c.discount4 : '';
+  $('cardCustomerNotes').value = c.notes || '';
+
+  $('customerCardDialog').showModal();
+}
+
+async function saveCustomerCard() {
+  const id = $('cardCustomerId').value.trim();
+  const name = $('cardCustomerName').value.trim();
+  const city = $('cardCustomerCity').value.trim();
+  if (!name || !city) {
+    alert('Ragione sociale e Città sono campi obbligatori');
+    return;
+  }
+
+  const btn = $('saveCustomerCardBtn');
+  const prevText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Salvataggio su Google Sheets…';
+
+  const payload = {
+    id,
+    code: id,
+    name,
+    type: $('cardCustomerType').value.trim(),
+    address: $('cardCustomerAddress').value.trim(),
+    city,
+    postalCode: $('cardCustomerCap').value.trim(),
+    province: $('cardCustomerPv').value.trim().toUpperCase(),
+    vatNumber: $('cardCustomerVat').value.trim(),
+    taxCode: $('cardCustomerTax').value.trim().toUpperCase(),
+    sdi: $('cardCustomerSdi').value.trim().toUpperCase(),
+    email: $('cardCustomerEmail').value.trim(),
+    phone: $('cardCustomerPhone').value.trim(),
+    mobile: $('cardCustomerMobile').value.trim(),
+    payment: $('cardCustomerPayment').value.trim(),
+    bank: $('cardCustomerBank').value.trim(),
+    iban: $('cardCustomerIban').value.trim().replace(/\s+/g, '').toUpperCase(),
+    maxDiscount: $('cardCustomerMaxDiscount').value.trim() !== '' ? Number($('cardCustomerMaxDiscount').value) : null,
+    discountTable: $('cardCustomerDiscountTable').value.trim(),
+    discount1: $('cardCustomerDiscount1').value.trim() !== '' ? Number($('cardCustomerDiscount1').value) : 0,
+    discount2: $('cardCustomerDiscount2').value.trim() !== '' ? Number($('cardCustomerDiscount2').value) : 0,
+    discount3: $('cardCustomerDiscount3').value.trim() !== '' ? Number($('cardCustomerDiscount3').value) : 0,
+    discount4: $('cardCustomerDiscount4').value.trim() !== '' ? Number($('cardCustomerDiscount4').value) : 0,
+    notes: $('cardCustomerNotes').value.trim()
+  };
+
+  try {
+    const res = await fetch('/api/customers/update', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Errore durante aggiornamento cliente');
+
+    const updated = data.customer || payload;
+    const idx = clients.findIndex(x => String(x.id) === String(id) || (x.name && x.name.toLowerCase() === name.toLowerCase()));
+    if (idx >= 0) {
+      clients[idx] = { ...clients[idx], ...updated };
+    } else {
+      clients.push(updated);
+    }
+
+    await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => {});
+    renderCustomers(updated.id || id);
+    showCustomer();
+    renderOffer();
+    $('customerCardDialog').close();
+    toast(`Scheda anagrafica di "${updated.name}" aggiornata su Google Drive`);
+  } catch (err) {
+    console.error('Errore salvataggio scheda anagrafica:', err);
+    alert(`Errore salvataggio: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevText;
+  }
 }
 
 function unique(field, source = products) {
@@ -537,7 +688,22 @@ function renderProducts(query = '') {
 function addProduct(code) {
   const product = products.find(p => p.code === code);
   if (!product) return;
-  items.push({ id: crypto.randomUUID(), product, qty: 1, discounts: [0, 0, 0, 0], markup: 0 });
+  const c = customerData();
+  let defaultDiscounts = [0, 0, 0, 0];
+  if (c && (Number(c.discount1) > 0 || Number(c.discount2) > 0 || Number(c.discount3) > 0 || Number(c.discount4) > 0)) {
+    defaultDiscounts = [
+      Number(c.discount1) || 0,
+      Number(c.discount2) || 0,
+      Number(c.discount3) || 0,
+      Number(c.discount4) || 0
+    ];
+  }
+  const maxLimit = maxAllowedDiscount(product, c);
+  const eff = effectiveDiscount(defaultDiscounts);
+  if (eff > maxLimit + 0.0001) {
+    defaultDiscounts = [Math.min(maxLimit, defaultDiscounts[0]), 0, 0, 0];
+  }
+  items.push({ id: crypto.randomUUID(), product, qty: 1, discounts: defaultDiscounts, markup: 0 });
   $('productSearch').value = '';
   $('productResults').classList.add('hidden');
   renderOffer();
@@ -554,9 +720,10 @@ function renderOffer() {
   $('emptyState').classList.toggle('hidden', items.length > 0);
   $('itemCount').textContent = `${items.length} ${items.length === 1 ? 'articolo' : 'articoli'}`;
 
+  const c = customerData();
   $('itemsList').innerHTML = items.map(it => {
     const eff = effectiveDiscount(it.discounts);
-    const maxLimit = maxAllowedDiscount(it.product);
+    const maxLimit = maxAllowedDiscount(it.product, c);
     const valid = eff <= maxLimit + 0.0001;
 
     return `<tr class="${valid ? '' : 'invalid-row'}"><td class="product-cell"><strong title="${esc(it.product.description)}">${esc(it.product.code)} · ${esc(it.product.description)}</strong><small>${esc([it.product.brand, it.product.macroFamily, it.product.family].filter(Boolean).join(' · '))} · Disp. ${num.format(it.product.stock)} · Max sc. ${maxLimit}% · IVA ${it.product.vat || 22}%</small></td><td><input aria-label="Quantità" type="number" min="0.01" step="0.01" value="${it.qty}" data-id="${it.id}" data-field="qty"></td><td><input aria-label="Listino" class="readonly" value="${num.format(it.product.price)}" readonly></td>${it.discounts.map((d, n) => `<td><input aria-label="Sconto ${n + 1}" type="number" min="0" max="100" step="0.1" value="${d}" data-id="${it.id}" data-discount="${n}"></td>`).join('')}<td><input aria-label="Ricarico" type="number" min="0" max="100" step="0.1" value="${it.markup}" data-id="${it.id}" data-field="markup"></td><td class="net-cell">${euro.format(lineNet(it))}<small class="${valid ? '' : 'bad'}">eq. ${num.format(eff)}%${valid ? '' : ' !'}</small></td><td><button class="compact-remove" data-remove="${it.id}" aria-label="Rimuovi">×</button></td></tr>`;
@@ -582,7 +749,8 @@ function renderOffer() {
 
 function updateTotals() {
   const t = totals();
-  const invalid = items.some(i => effectiveDiscount(i.discounts) > maxAllowedDiscount(i.product) + 0.0001);
+  const c = customerData();
+  const invalid = items.some(i => effectiveDiscount(i.discounts) > maxAllowedDiscount(i.product, c) + 0.0001);
   $('listTotal').textContent = euro.format(t.list);
   $('discountTotal').textContent = (t.net - t.list > 0 ? '+ ' : '') + euro.format(t.net - t.list);
   $('netTotal').textContent = euro.format(t.net);
@@ -590,7 +758,8 @@ function updateTotals() {
   $('grandTotal').textContent = euro.format(t.grand);
   const v = $('validationStatus');
   v.className = 'validation ' + (invalid ? 'bad' : items.length ? 'ok' : 'neutral');
-  v.textContent = invalid ? 'Correggere gli sconti fuori dal limite autorizzato' : items.length ? 'Offerta pronta per invio, PDF ed Excel' : 'Inserisci almeno un articolo';
+  const custLimitText = (c && c.maxDiscount != null && Number(c.maxDiscount) > 0) ? ` (Max cliente: ${c.maxDiscount}%)` : '';
+  v.textContent = invalid ? `Correggere gli sconti fuori dal limite autorizzato${custLimitText}` : items.length ? 'Offerta pronta per invio, PDF ed Excel' : 'Inserisci almeno un articolo';
 }
 
 function currentPaymentValue() {
@@ -785,7 +954,10 @@ async function readApiResponse(response) {
 async function sendSubmission(payload) {
   const number = payload.orderNumber || payload.offerNumber;
   const type = payload.documentType || (payload.orderNumber ? 'order' : 'offer');
-  localStorage.setItem(`submission-${number}`, payload.id);
+  try {
+    localStorage.setItem(`submission-${number}`, JSON.stringify(payload));
+    localStorage.setItem(`submission-payload-${number}`, JSON.stringify(payload));
+  } catch {}
   const hdrs = { 'content-type': 'application/json', 'accept': 'application/json' };
   const token = localStorage.getItem('oa_session_token');
   if (token) hdrs['Authorization'] = 'Bearer ' + token;
@@ -915,20 +1087,35 @@ function agentIdForSource(source) {
 function normalizeClients(rows) {
   return rows.map((r, index) => {
     const source = pick(r, 'Agente');
+    const maxD = pick(r, 'Sconto Max', 'Sconto_Max', 'Sconto massimo', 'Max sconto');
     return {
       id: pick(r, 'Codice') || String(index + 1),
+      code: pick(r, 'Codice') || String(index + 1),
       name: pick(r, 'Ragione sociale', 'Cliente'),
       activityCode: pick(r, 'Cod.Att.'),
-      activity: pick(r, 'Attivita'),
+      activity: pick(r, 'Attivita', 'Tipo') || 'Cliente',
       sourceAgent: source,
       agentId: agentIdForSource(source),
-      address: pick(r, 'Indirizzo'),
+      address: pick(r, 'Indirizzo', 'Via'),
       postalCode: pick(r, 'Cap'),
       city: pick(r, 'Citta'),
       province: pick(r, 'Pv', 'Provincia'),
-      phone: pick(r, 'Telefono'),
-      mobile: pick(r, 'Cellulare'),
-      email: pick(r, 'E-mail', 'Email')
+      phone: pick(r, 'Telefono', 'Tel'),
+      mobile: pick(r, 'Cellulare', 'Cell', 'Mobile'),
+      email: pick(r, 'E-mail', 'Email'),
+      sdi: pick(r, 'Sdi', 'Univoco', 'Destinatario'),
+      iban: pick(r, 'Iban'),
+      bank: pick(r, 'Banca', 'Appoggio'),
+      vatNumber: pick(r, 'Partita iva', 'P.Iva', 'Piva'),
+      taxCode: pick(r, 'Codice fiscale', 'Cf'),
+      payment: pick(r, 'Condizioni pagamento', 'Pagamento', 'Payment'),
+      maxDiscount: maxD !== '' ? toNumber(maxD) : null,
+      discountTable: pick(r, 'Tabella Sconti', 'Tabella_Sconti', 'Tabella', 'Listino sconti'),
+      discount1: toNumber(pick(r, 'Sconto 1', 'Sconto_1', 'Sc 1', 'Sc1')),
+      discount2: toNumber(pick(r, 'Sconto 2', 'Sconto_2', 'Sc 2', 'Sc2')),
+      discount3: toNumber(pick(r, 'Sconto 3', 'Sconto_3', 'Sc 3', 'Sc3')),
+      discount4: toNumber(pick(r, 'Sconto 4', 'Sconto_4', 'Sc 4', 'Sc4')),
+      notes: pick(r, 'Note anagrafica', 'Note cliente', 'Note')
     };
   }).filter(c => c.id && c.name);
 }
@@ -1064,6 +1251,18 @@ function bindEvents() {
   };
   $('submitBtn').onclick = submitOffer;
   $('newCustomerBtn').onclick = () => $('customerDialog').showModal();
+  $('editCustomerBtn')?.addEventListener('click', () => {
+    const cid = $('customerSelect').value;
+    if (!cid) {
+      toast('Seleziona prima un cliente dal menu a tendina');
+      return;
+    }
+    openCustomerCard(cid);
+  });
+  $('closeCustomerCardBtn')?.addEventListener('click', () => $('customerCardDialog').close());
+  $('closeCustomerCardX')?.addEventListener('click', () => $('customerCardDialog').close());
+  $('saveCustomerCardBtn')?.addEventListener('click', saveCustomerCard);
+
   $('confirmCustomer').onclick = async e => {
     e.preventDefault();
     const name = $('newCustomerName').value.trim();
@@ -1078,6 +1277,15 @@ function bindEvents() {
     const iban = ($('newCustomerIban')?.value || '').trim().replace(/\s+/g, '');
     const bank = ($('newCustomerBank')?.value || '').trim();
     const agentId = $('assignedAgent')?.value || currentAgentId() || 'AG01';
+
+    const maxDiscount = ($('newCustomerMaxDiscount')?.value || '').trim();
+    const discountTable = ($('newCustomerDiscountTable')?.value || '').trim();
+    const discount1 = ($('newCustomerDiscount1')?.value || '').trim();
+    const discount2 = ($('newCustomerDiscount2')?.value || '').trim();
+    const discount3 = ($('newCustomerDiscount3')?.value || '').trim();
+    const discount4 = ($('newCustomerDiscount4')?.value || '').trim();
+    const notes = ($('newCustomerNotes')?.value || '').trim();
+
     if (!name || !city) {
       alert('Inserire almeno la ragione sociale e la città del cliente');
       return;
@@ -1105,7 +1313,14 @@ function bindEvents() {
           payment,
           iban,
           bank,
-          agentId
+          agentId,
+          maxDiscount: maxDiscount !== '' ? Number(maxDiscount) : null,
+          discountTable,
+          discount1: discount1 !== '' ? Number(discount1) : 0,
+          discount2: discount2 !== '' ? Number(discount2) : 0,
+          discount3: discount3 !== '' ? Number(discount3) : 0,
+          discount4: discount4 !== '' ? Number(discount4) : 0,
+          notes
         })
       });
       const data = await res.json();
@@ -1133,7 +1348,14 @@ function bindEvents() {
         postalCode: '',
         province: '',
         activity: 'Cliente',
-        activityCode: ''
+        activityCode: '',
+        maxDiscount: maxDiscount !== '' ? Number(maxDiscount) : null,
+        discountTable,
+        discount1: discount1 !== '' ? Number(discount1) : 0,
+        discount2: discount2 !== '' ? Number(discount2) : 0,
+        discount3: discount3 !== '' ? Number(discount3) : 0,
+        discount4: discount4 !== '' ? Number(discount4) : 0,
+        notes
       };
       toast('Cliente salvato in locale (Google Sheets non raggiungibile)');
     } finally {
