@@ -28,7 +28,7 @@ function users() {
       const hasAdmin = list.some(u => String(u.username || '').toLowerCase() === 'administrator');
       return hasAdmin ? list : [...list, { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' }];
     }
-  } catch {}
+  } catch { }
   return defaults;
 }
 
@@ -411,7 +411,7 @@ async function loadCentralConfig(force = false) {
               parsedFromJson = true;
               break;
             }
-          } catch {}
+          } catch { }
         }
       }
       if (!parsedFromJson) {
@@ -717,10 +717,10 @@ async function fetchAgentsData(customId, customTab) {
         const firstName = String(r[nameIdx] || '').trim();
         const lastName = String(r[surnameIdx] || '').trim();
         const fullName = [firstName, lastName].filter(Boolean).join(' ') ||
-                         String(r[rsIdx] || '').trim() ||
-                         knownAgentNames[rawCode] ||
-                         knownAgentNames[idShort] ||
-                         `Agente ${idShort}`;
+          String(r[rsIdx] || '').trim() ||
+          knownAgentNames[rawCode] ||
+          knownAgentNames[idShort] ||
+          `Agente ${idShort}`;
 
         const limitRaw = r[discountIdx] != null ? Number(r[discountIdx]) : 0.4;
         const discountLimit = limitRaw <= 1.0 ? Math.round(limitRaw * 100) : limitRaw;
@@ -763,7 +763,7 @@ async function fetchAgentsData(customId, customTab) {
       error: err.message,
       count: 0,
       agents: [],
-      hierarchy: { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] }
+      hierarchy: {}
     };
   }
 }
@@ -820,7 +820,7 @@ async function fetchCustomersData(customId, customTab, user = null) {
         if (!r || r[codeIdx] == null || String(r[codeIdx]).trim() === '') continue;
         const codeVal = String(r[codeIdx]).replace(/\.0$/, '').trim();
         const agentVal = String(r[agentIdx] || '').trim();
-        
+
         // Risoluzione 100% dinamica su Google Drive: confronta con codice, username, nome o email dell'agente
         let agentId = 'UNASSIGNED';
         if (agentVal) {
@@ -831,11 +831,11 @@ async function fetchCustomersData(customId, customTab, user = null) {
             const aName = String(a.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
             const aEmail = String(a.email || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
             return normVal === aCode ||
-                   normVal === aUser ||
-                   normVal === aName ||
-                   (aName && (normVal.includes(aName) || aName.includes(normVal))) ||
-                   normVal === aEmail ||
-                   (aCode.replace(/\D+/g, '') && aCode.replace(/\D+/g, '') === normVal.replace(/\D+/g, ''));
+              normVal === aUser ||
+              normVal === aName ||
+              (aName && (normVal.includes(aName) || aName.includes(normVal))) ||
+              normVal === aEmail ||
+              (aCode.replace(/\D+/g, '') && aCode.replace(/\D+/g, '') === normVal.replace(/\D+/g, ''));
           });
           agentId = matchedDyn ? matchedDyn.agentCode : normalizeAgentId(agentVal);
         }
@@ -875,23 +875,24 @@ async function fetchCustomersData(customId, customTab, user = null) {
       }
 
       if (customers.length > 0) {
-        if (user && user.role !== 'admin' && user.role !== 'area_head') {
+        if (user && user.role !== 'admin') {
           const userAgent = normalizeAgentId(user.agentCode || '');
-          const hier = { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
-          const subAgents = (hier[userAgent] || []).map(normalizeAgentId);
           const allowed = new Set([
             userAgent,
             userAgent.replace(/^AG0?/, 'AG'),
             userAgent.replace(/^AG0?/, 'AG0'),
-            userAgent.replace(/^AG0*/, ''),
-            ...subAgents,
-            ...subAgents.map(s => s.replace(/^AG0?/, 'AG')),
-            ...subAgents.map(s => s.replace(/^AG0*/, ''))
+            userAgent.replace(/^AG0*/, '')
           ]);
+          if (user.name) allowed.add(user.name.toLowerCase().trim());
+          if (user.username) allowed.add(user.username.toLowerCase().trim());
           customers = customers.filter(c => {
             const normAg = normalizeAgentId(c.agentId);
             const normSrc = normalizeAgentId(c.sourceAgent);
-            return allowed.has(c.agentId) || allowed.has(normAg) || allowed.has(c.sourceAgent) || allowed.has(normSrc);
+            const rawSrc = String(c.sourceAgent || '').toLowerCase().trim();
+            const rawAg = String(c.agentId || '').toLowerCase().trim();
+            return allowed.has(c.agentId) || allowed.has(normAg) || allowed.has(c.sourceAgent) || allowed.has(normSrc) ||
+                   allowed.has(rawSrc) || allowed.has(rawAg) ||
+                   (user.name && rawSrc.includes(user.name.toLowerCase().trim()));
           });
         }
         return { ok: true, source: 'google-sheets', count: customers.length, customers };
@@ -1365,15 +1366,40 @@ async function listDocs(tab, user, customId) {
     const estDeliveryIdx = findCol(['consegna prevista']);
     const delivDateIdx = findCol(['data consegna']);
 
-    // Allowed agents for user role
+    // Segregazione ruoli e permessi:
+    // SOLO l'amministratore vede tutto. Ogni agente vede SOLO i suoi clienti, le sue offerte e solo i suoi ordini.
     const userRole = user?.role || 'agent';
     const userAgentCode = normalizeAgentId(user?.agentCode || '');
     const allowedAgents = new Set();
+    const userClientCodes = new Set();
+    const userClientNames = new Set();
+
     if (userRole !== 'admin') {
-      if (userAgentCode) allowedAgents.add(userAgentCode);
-      const hier = { AG01: ['AG02'], AG03: ['AG04', 'AG05', 'AG06', 'AG07', 'AG08', 'AG09', 'AG10', 'AG11'] };
-      if (hier[userAgentCode]) {
-        for (const sub of hier[userAgentCode]) allowedAgents.add(normalizeAgentId(sub));
+      if (userAgentCode) {
+        allowedAgents.add(userAgentCode);
+        allowedAgents.add(userAgentCode.replace(/^AG0?/, 'AG'));
+        allowedAgents.add(userAgentCode.replace(/^AG0?/, 'AG0'));
+        allowedAgents.add(userAgentCode.replace(/^AG0*/, ''));
+      }
+      if (user?.name) {
+        allowedAgents.add(user.name.toLowerCase().trim());
+      }
+      if (user?.username) {
+        allowedAgents.add(user.username.toLowerCase().trim());
+      }
+
+      // Recupera tutti i clienti assegnati all'agente per permettergli di vedere offerte/ordini collegati
+      try {
+        const custRes = await fetchCustomersData(undefined, undefined, user);
+        if (custRes?.customers && Array.isArray(custRes.customers)) {
+          for (const c of custRes.customers) {
+            if (c.code) userClientCodes.add(String(c.code).toLowerCase().trim());
+            if (c.id) userClientCodes.add(String(c.id).toLowerCase().trim());
+            if (c.name) userClientNames.add(String(c.name).toLowerCase().trim());
+          }
+        }
+      } catch (e) {
+        console.warn('Errore recupero clienti assegnati per filtro pratiche:', e.message);
       }
     }
 
@@ -1386,17 +1412,40 @@ async function listDocs(tab, user, customId) {
       const num = numIdx >= 0 && r[numIdx] != null ? cleanCell(r[numIdx]) : '';
       if (!id && !num) continue;
 
-      const agCode = agCodeIdx >= 0 && r[agCodeIdx] != null ? normalizeAgentId(r[agCodeIdx]) : '';
-      if (userRole !== 'admin' && allowedAgents.size > 0 && agCode && !allowedAgents.has(agCode)) {
-        continue;
+      const rawAgCode = agCodeIdx >= 0 && r[agCodeIdx] != null ? String(r[agCodeIdx]).trim() : '';
+      const agCode = normalizeAgentId(rawAgCode);
+      const rawAgName = agNameIdx >= 0 && r[agNameIdx] != null ? cleanCell(r[agNameIdx]) : '';
+      const custId = custIdIdx >= 0 && r[custIdIdx] != null ? cleanCell(r[custIdIdx]) : '';
+      const custName = custNameIdx >= 0 && r[custNameIdx] != null ? cleanCell(r[custNameIdx]) : '';
+      const normCustId = custId ? String(custId).toLowerCase().trim() : '';
+      const normCustName = custName ? String(custName).toLowerCase().trim() : '';
+
+      // Filtro rigoroso: solo l'admin vede tutto; l'agente vede SOLO le sue offerte/ordini o dei suoi clienti
+      if (userRole !== 'admin') {
+        const isOwnAgent = Boolean(
+          (agCode && allowedAgents.has(agCode)) ||
+          (rawAgCode && allowedAgents.has(rawAgCode.toLowerCase())) ||
+          (rawAgName && user?.name && rawAgName.toLowerCase().includes(user.name.toLowerCase().trim())) ||
+          (user?.username && rawAgCode.toLowerCase() === user.username.toLowerCase())
+        );
+
+        const isOwnClient = Boolean(
+          (normCustId && userClientCodes.has(normCustId)) ||
+          (normCustName && (
+            userClientNames.has(normCustName) ||
+            [...userClientNames].some(cn => cn.length >= 3 && (normCustName.includes(cn) || cn.includes(normCustName)))
+          ))
+        );
+
+        if (!isOwnAgent && !isOwnClient) {
+          continue;
+        }
       }
 
       const total = totalIdx >= 0 ? parseTotal(r[totalIdx]) : 0;
       const subAt = subIdx >= 0 && r[subIdx] != null ? cleanCell(r[subIdx]) : '';
       const updAt = updIdx >= 0 && r[updIdx] != null ? cleanCell(r[updIdx]) : '';
-      const agName = agNameIdx >= 0 && r[agNameIdx] != null ? cleanCell(r[agNameIdx]) : (knownAgentNames[agCode] || (agCode ? `Agente ${agCode}` : ''));
-      const custId = custIdIdx >= 0 && r[custIdIdx] != null ? cleanCell(r[custIdIdx]) : '';
-      const custName = custNameIdx >= 0 && r[custNameIdx] != null ? cleanCell(r[custNameIdx]) : '';
+      const agName = rawAgName || (knownAgentNames[agCode] || (agCode ? `Agente ${agCode}` : ''));
       const curr = currIdx >= 0 && r[currIdx] != null ? cleanCell(r[currIdx]) : 'EUR';
       const outcome = outcomeIdx >= 0 && r[outcomeIdx] != null ? cleanCell(r[outcomeIdx]) : '';
       const rawStatus = statusIdx >= 0 && r[statusIdx] != null ? cleanCell(r[statusIdx]) : '';
@@ -1421,7 +1470,7 @@ async function listDocs(tab, user, customId) {
           try {
             const parsed = JSON.parse(val);
             if (parsed && typeof parsed === 'object') payloadObj = parsed;
-          } catch {}
+          } catch { }
         }
       }
       if (!payloadObj) {
@@ -1434,7 +1483,7 @@ async function listDocs(tab, user, customId) {
                 payloadObj = parsed;
                 break;
               }
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -1572,7 +1621,7 @@ async function createDoc(tab, body, user, customId) {
 
       if (isOfficialTemplate) {
         if (tab === 'Ordini' && (rawRows[headerIdx].length < 25 || !String(rawRows[headerIdx][24] || '').trim())) {
-          await updateRow(regId, `'${tab}'!Y${headerIdx + 1}`, [['payload_json']]).catch(() => {});
+          await updateRow(regId, `'${tab}'!Y${headerIdx + 1}`, [['payload_json']]).catch(() => { });
         }
 
         if (tab === 'Offerte') {
@@ -1826,7 +1875,7 @@ async function createCustomer(body, user, customId) {
 
     if (headerChanged) {
       const lastHeaderCol = colToLetter(header.length - 1);
-      await updateRow(custSpreadsheetId, `'${tab}'!A1:${lastHeaderCol}1`, [header]).catch(() => {});
+      await updateRow(custSpreadsheetId, `'${tab}'!A1:${lastHeaderCol}1`, [header]).catch(() => { });
     }
 
     // Calcola il codice progressivo massimo
@@ -1926,12 +1975,12 @@ async function createCustomer(body, user, customId) {
       payment,
       vatNumber: body.vat || tax,
       taxCode: tax,
-      maxDiscount: maxDiscount !== '' ? parseFloat(maxDiscount.replace('%','').replace(',','.')) || null : null,
+      maxDiscount: maxDiscount !== '' ? parseFloat(maxDiscount.replace('%', '').replace(',', '.')) || null : null,
       discountTable,
-      discount1: discount1 !== '' ? parseFloat(discount1.replace('%','').replace(',','.')) || 0 : 0,
-      discount2: discount2 !== '' ? parseFloat(discount2.replace('%','').replace(',','.')) || 0 : 0,
-      discount3: discount3 !== '' ? parseFloat(discount3.replace('%','').replace(',','.')) || 0 : 0,
-      discount4: discount4 !== '' ? parseFloat(discount4.replace('%','').replace(',','.')) || 0 : 0,
+      discount1: discount1 !== '' ? parseFloat(discount1.replace('%', '').replace(',', '.')) || 0 : 0,
+      discount2: discount2 !== '' ? parseFloat(discount2.replace('%', '').replace(',', '.')) || 0 : 0,
+      discount3: discount3 !== '' ? parseFloat(discount3.replace('%', '').replace(',', '.')) || 0 : 0,
+      discount4: discount4 !== '' ? parseFloat(discount4.replace('%', '').replace(',', '.')) || 0 : 0,
       notes
     };
 
@@ -2028,7 +2077,7 @@ async function updateCustomer(body, user, customId) {
 
     if (headerChanged) {
       const lastHeaderCol = colToLetter(header.length - 1);
-      await updateRow(custSpreadsheetId, `'${tab}'!A1:${lastHeaderCol}1`, [header]).catch(() => {});
+      await updateRow(custSpreadsheetId, `'${tab}'!A1:${lastHeaderCol}1`, [header]).catch(() => { });
     }
 
     const row = [...rows[targetRowIdx]];
@@ -2211,7 +2260,7 @@ async function updateOrderStatus(orderId, updateData, user) {
         payloadObj = JSON.parse(val);
         payloadColIdx = k;
         break;
-      } catch {}
+      } catch { }
     }
   }
 
@@ -2382,7 +2431,7 @@ async function listVisits(user, customId) {
     const r = rows[i];
     if (!r || !r[0]) continue;
     const agCode = normalizeAgentId((agCodeIdx >= 0 ? r[agCodeIdx] : r[1]) || '');
-    if (userRole !== 'admin' && userAgentCode && agCode && agCode !== userAgentCode) {
+    if (userRole !== 'admin' && userAgentCode && (!agCode || agCode !== userAgentCode)) {
       continue;
     }
     visits.push({
@@ -2421,7 +2470,7 @@ async function saveVisit(data, user) {
   } else if (rows[0] && rows[0].length < 14) {
     const curH = rows[0].map(c => String(c || '').toLowerCase().trim());
     if (!curH.includes('cellulare') && !curH.includes('email')) {
-      await updateRow(regId, "'Giro_Visite'!A1:N1", [defaultHeader]).catch(() => {});
+      await updateRow(regId, "'Giro_Visite'!A1:N1", [defaultHeader]).catch(() => { });
     }
   }
 
@@ -2494,7 +2543,7 @@ async function listProspects(user, customId) {
     const r = rows[i];
     if (!r || !r[0]) continue;
     const agCode = normalizeAgentId((agCodeIdx >= 0 ? r[agCodeIdx] : r[1]) || '');
-    if (userRole !== 'admin' && userAgentCode && agCode && agCode !== userAgentCode) {
+    if (userRole !== 'admin' && userAgentCode && (!agCode || agCode !== userAgentCode)) {
       continue;
     }
     prospects.push({
@@ -2530,7 +2579,7 @@ async function saveProspect(data, user) {
   } else if (rows[0] && rows[0].length < 12) {
     const curH = rows[0].map(c => String(c || '').toLowerCase().trim());
     if (!curH.includes('cellulare')) {
-      await updateRow(regId, "'Contatti_Prospect'!A1:L1", [defaultHeader]).catch(() => {});
+      await updateRow(regId, "'Contatti_Prospect'!A1:L1", [defaultHeader]).catch(() => { });
     }
   }
 
@@ -2763,7 +2812,7 @@ async function setupWarehouseSpreadsheet(whId) {
         ['', '', ''],
         ['SICUREZZA & PERFORMANCE:', 'Questo foglio dedicato protegge gli 11 agenti sul campo da blocchi o rallentamenti di concorrenza durante i prelievi continui del magazzino.', '']
       ];
-      await updateRow(whId, "'Istruzioni_e_Legenda'!A1:C11", infoRows).catch(() => {});
+      await updateRow(whId, "'Istruzioni_e_Legenda'!A1:C11", infoRows).catch(() => { });
     }
 
     const movCheck = await readRange(whId, "'Movimenti_Magazzino'!A1:C1").catch(() => []);
@@ -2771,7 +2820,7 @@ async function setupWarehouseSpreadsheet(whId) {
       const movHeader = [
         ['ID Movimento', 'Data Registrazione', 'Tipo Operazione', 'Codice Articolo', 'Descrizione Prodotto', 'Quantità (PZ)', 'Numero Lotto', 'Ubicazione Stoccaggio', 'Operatore / Reparto', 'Riferimento Doc / Ordine', 'Note e Dettagli']
       ];
-      await updateRow(whId, "'Movimenti_Magazzino'!A1:K1", movHeader).catch(() => {});
+      await updateRow(whId, "'Movimenti_Magazzino'!A1:K1", movHeader).catch(() => { });
     }
 
     const paramCheck = await readRange(whId, "'Parametri_Produzione'!A1:C1").catch(() => []);
@@ -2779,7 +2828,7 @@ async function setupWarehouseSpreadsheet(whId) {
       const paramHeader = [
         ['Codice Articolo', 'Descrizione Prodotto', 'Famiglia / Linea', 'Ubicazione Primaria', 'Tempo Produzione Stimato (gg)', 'Lotto Minimo Produzione (PZ)', 'Scorta Minima di Sicurezza (PZ)', 'Scorta Massima (PZ)', 'Note Reparto Produzione', 'Ultimo Aggiornamento', 'Aggiornato Da']
       ];
-      await updateRow(whId, "'Parametri_Produzione'!A1:K1", paramHeader).catch(() => {});
+      await updateRow(whId, "'Parametri_Produzione'!A1:K1", paramHeader).catch(() => { });
 
       try {
         const prodData = await fetchProductsData();
@@ -2798,7 +2847,7 @@ async function setupWarehouseSpreadsheet(whId) {
             nowIso,
             'Inizializzazione Sistema'
           ]);
-          await append(whId, "'Parametri_Produzione'!A:K", initialRows).catch(() => {});
+          await append(whId, "'Parametri_Produzione'!A:K", initialRows).catch(() => { });
         }
       } catch (err) {
         console.warn('Pre-populating products warning:', err.message);

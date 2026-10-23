@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="it">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -49,8 +50,9 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
     }
+
     .topbar-content {
       max-width: 1100px;
       margin: 0 auto;
@@ -59,11 +61,13 @@
       justify-content: space-between;
       gap: 12px;
     }
+
     .brand-group {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
     .brand-badge {
       background: #ffffff;
       color: var(--navy-light);
@@ -73,11 +77,13 @@
       padding: 6px 10px;
       letter-spacing: .05em;
     }
+
     .brand-meta strong {
       font-size: 1rem;
       display: block;
       line-height: 1.2;
     }
+
     .brand-meta small {
       color: #9cd3fc;
       font-size: .75rem;
@@ -85,6 +91,7 @@
       align-items: center;
       gap: 5px;
     }
+
     .sync-indicator {
       display: inline-block;
       width: 7px;
@@ -92,15 +99,17 @@
       border-radius: 50%;
       background: #34d399;
     }
+
     .top-actions {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+
     .btn-top {
-      background: rgba(255,255,255,0.12);
+      background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
       padding: 7px 12px;
       font-size: .82rem;
@@ -112,8 +121,9 @@
       gap: 6px;
       transition: background .15s ease;
     }
+
     .btn-top:hover {
-      background: rgba(255,255,255,0.22);
+      background: rgba(255, 255, 255, 0.22);
     }
 
     /* Main Container */
@@ -122,8 +132,11 @@
       margin: 0 auto;
       padding: 16px;
     }
+
     @media (min-width: 600px) {
-      .shell { padding: 24px; }
+      .shell {
+        padding: 24px;
+      }
     }
 
     /* Hero & Quick Actions */
@@ -133,8 +146,9 @@
       border-radius: var(--radius);
       padding: 18px;
       margin-bottom: 16px;
-      box-shadow: 0 4px 16px rgba(11,41,66,0.04);
+      box-shadow: 0 4px 16px rgba(11, 41, 66, 0.04);
     }
+
     .hero-welcome {
       display: flex;
       justify-content: space-between;
@@ -143,11 +157,13 @@
       flex-wrap: wrap;
       gap: 8px;
     }
+
     .hero-welcome h1 {
       font-size: 1.35rem;
       margin: 0 0 4px;
       color: var(--navy);
     }
+
     .user-pill {
       display: inline-flex;
       align-items: center;
@@ -167,11 +183,13 @@
       gap: 12px;
       margin-bottom: 8px;
     }
+
     @media (max-width: 480px) {
       .actions-grid {
         grid-template-columns: 1fr;
       }
     }
+
     .cta-card {
       display: flex;
       align-items: center;
@@ -183,28 +201,34 @@
       position: relative;
       overflow: hidden;
     }
+
     .cta-card:active {
       transform: scale(0.98);
     }
+
     .cta-card.offer {
       background: linear-gradient(135deg, #1b6ca8 0%, #0f4f80 100%);
       color: white;
-      box-shadow: 0 6px 18px rgba(27,108,168,0.25);
+      box-shadow: 0 6px 18px rgba(27, 108, 168, 0.25);
     }
+
     .cta-card.order {
       background: linear-gradient(135deg, #16835b 0%, #0e5b3f 100%);
       color: white;
-      box-shadow: 0 6px 18px rgba(22,131,91,0.25);
+      box-shadow: 0 6px 18px rgba(22, 131, 91, 0.25);
     }
+
     .cta-icon {
       font-size: 1.8rem;
       flex-shrink: 0;
     }
+
     .cta-info strong {
       display: block;
       font-size: 1.05rem;
       line-height: 1.2;
     }
+
     .cta-info small {
       opacity: 0.85;
       font-size: .78rem;
@@ -216,6 +240,7 @@
       margin-top: 12px;
       flex-wrap: wrap;
     }
+
     .btn-sub {
       background: #ffffff;
       border: 1px solid var(--line);
@@ -230,6 +255,7 @@
       align-items: center;
       gap: 6px;
     }
+
     .btn-sub:hover {
       background: var(--ice);
     }
@@ -240,8 +266,9 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       padding: 18px;
-      box-shadow: 0 4px 16px rgba(11,41,66,0.04);
+      box-shadow: 0 4px 16px rgba(11, 41, 66, 0.04);
     }
+
     .practices-header {
       display: flex;
       justify-content: space-between;
@@ -250,6 +277,7 @@
       flex-wrap: wrap;
       gap: 10px;
     }
+
     .practices-header h2 {
       font-size: 1.15rem;
       margin: 0;
@@ -258,6 +286,7 @@
       align-items: center;
       gap: 8px;
     }
+
     .counter-badge {
       background: var(--ice);
       color: var(--navy-light);
@@ -274,6 +303,7 @@
       gap: 10px;
       margin-bottom: 16px;
     }
+
     @media (min-width: 600px) {
       .filter-bar {
         flex-direction: row;
@@ -281,10 +311,12 @@
         align-items: center;
       }
     }
+
     .search-box {
       position: relative;
       flex: 1;
     }
+
     .search-box input {
       width: 100%;
       box-sizing: border-box;
@@ -295,11 +327,13 @@
       background: #fafcfe;
       outline: none;
     }
+
     .search-box input:focus {
       border-color: var(--blue);
       background: #fff;
-      box-shadow: 0 0 0 3px rgba(32,118,181,0.12);
+      box-shadow: 0 0 0 3px rgba(32, 118, 181, 0.12);
     }
+
     .search-icon {
       position: absolute;
       left: 12px;
@@ -309,6 +343,7 @@
       color: var(--muted);
       pointer-events: none;
     }
+
     .search-clear {
       position: absolute;
       right: 10px;
@@ -329,6 +364,7 @@
       border-radius: 10px;
       gap: 2px;
     }
+
     .tab-btn {
       border: 0;
       background: none;
@@ -340,10 +376,11 @@
       cursor: pointer;
       transition: all .15s ease;
     }
+
     .tab-btn.active {
       background: #ffffff;
       color: var(--navy);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
     /* Practice Item Card */
@@ -351,6 +388,7 @@
       display: grid;
       gap: 10px;
     }
+
     .practice-item {
       border: 1px solid #dbe4ea;
       border-radius: 12px;
@@ -362,10 +400,12 @@
       flex-direction: column;
       gap: 8px;
     }
+
     .practice-item:hover {
       border-color: #b2c9d8;
-      box-shadow: 0 4px 12px rgba(11,41,66,0.06);
+      box-shadow: 0 4px 12px rgba(11, 41, 66, 0.06);
     }
+
     .practice-item:active {
       transform: scale(0.995);
     }
@@ -377,12 +417,14 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+
     .item-doc-info {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
     }
+
     .doc-pill {
       font-size: .72rem;
       font-weight: 750;
@@ -390,14 +432,17 @@
       border-radius: 6px;
       letter-spacing: .02em;
     }
+
     .doc-pill.offer {
       background: #e1f0fa;
       color: #1b6ca8;
     }
+
     .doc-pill.order {
       background: #e3f7ed;
       color: #12794e;
     }
+
     .doc-num {
       font-weight: 750;
       font-size: .95rem;
@@ -414,10 +459,26 @@
       align-items: center;
       gap: 4px;
     }
-    .status-green { background: var(--green-bg); color: var(--green-text); }
-    .status-amber { background: var(--amber-bg); color: var(--amber-text); }
-    .status-red { background: var(--red-bg); color: var(--red-text); }
-    .status-purple { background: var(--purple-bg); color: var(--purple-text); }
+
+    .status-green {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+
+    .status-amber {
+      background: var(--amber-bg);
+      color: var(--amber-text);
+    }
+
+    .status-red {
+      background: var(--red-bg);
+      color: var(--red-text);
+    }
+
+    .status-purple {
+      background: var(--purple-bg);
+      color: var(--purple-text);
+    }
 
     .item-customer {
       font-size: 1.05rem;
@@ -436,23 +497,28 @@
       padding-top: 8px;
       margin-top: 2px;
     }
+
     .item-meta {
       font-size: .78rem;
       color: var(--muted);
       line-height: 1.4;
     }
+
     .item-meta span {
       display: inline-block;
     }
+
     .item-total-group {
       text-align: right;
     }
+
     .item-total {
       font-size: 1.15rem;
       font-weight: 800;
       color: var(--navy);
       display: block;
     }
+
     .item-storage-note {
       font-size: .72rem;
       color: #16835b;
@@ -484,13 +550,15 @@
       border-radius: 16px;
       padding: 0;
       width: min(520px, calc(100vw - 32px));
-      box-shadow: 0 20px 60px rgba(11,41,66,0.28);
+      box-shadow: 0 20px 60px rgba(11, 41, 66, 0.28);
       background: #ffffff;
     }
+
     dialog#detailModal::backdrop {
-      background: rgba(11,41,66,0.6);
+      background: rgba(11, 41, 66, 0.6);
       backdrop-filter: blur(3px);
     }
+
     .modal-head {
       background: var(--navy);
       color: white;
@@ -499,12 +567,14 @@
       justify-content: space-between;
       align-items: center;
     }
+
     .modal-head h3 {
       margin: 0;
       font-size: 1.05rem;
     }
+
     .modal-close {
-      background: rgba(255,255,255,0.15);
+      background: rgba(255, 255, 255, 0.15);
       border: 0;
       color: white;
       border-radius: 50%;
@@ -515,26 +585,31 @@
       display: grid;
       place-items: center;
     }
+
     .modal-body {
       padding: 20px;
       font-size: .9rem;
       display: grid;
       gap: 12px;
     }
+
     .detail-row {
       display: flex;
       justify-content: space-between;
       border-bottom: 1px solid #f0f4f7;
       padding-bottom: 8px;
     }
+
     .detail-row span {
       color: var(--muted);
       font-size: .82rem;
     }
+
     .detail-row strong {
       color: var(--navy);
       text-align: right;
     }
+
     .modal-actions {
       padding: 16px 20px;
       background: #f8fafc;
@@ -553,18 +628,21 @@
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 28px;
-      box-shadow: 0 12px 36px rgba(11,41,66,0.08);
+      box-shadow: 0 12px 36px rgba(11, 41, 66, 0.08);
     }
+
     .login-box h1 {
       margin: 0 0 6px;
       font-size: 1.5rem;
       color: var(--navy);
     }
+
     .login-box p {
       margin: 0 0 20px;
       color: var(--muted);
       font-size: .88rem;
     }
+
     .login-box label {
       display: block;
       font-size: .84rem;
@@ -572,6 +650,7 @@
       color: #3b4e5c;
       margin-bottom: 14px;
     }
+
     .login-box input {
       width: 100%;
       box-sizing: border-box;
@@ -581,11 +660,13 @@
       border-radius: 10px;
       font-size: .95rem;
     }
+
     .login-box input:focus {
       border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(32,118,181,0.12);
+      box-shadow: 0 0 0 3px rgba(32, 118, 181, 0.12);
       outline: none;
     }
+
     .btn-submit {
       width: 100%;
       background: var(--blue);
@@ -598,6 +679,7 @@
       cursor: pointer;
       margin-top: 10px;
     }
+
     .error-msg {
       color: #c5221f;
       font-size: .85rem;
@@ -605,9 +687,12 @@
       font-weight: 600;
     }
 
-    .hidden { display: none !important; }
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
+
 <body>
   <!-- Header -->
   <header class="topbar-main">
@@ -677,17 +762,20 @@
 
         <div class="sub-actions">
           <a class="btn-sub hidden" id="adminOrdersBtn" href="/gestione-ordini.html">📦 Gestione Ordini & Magazzino</a>
-          <a class="btn-sub hidden" id="adminProdBtn" href="/pianificazione-produzione.html">🏭 Piano Produzione & Scorte</a>
+          <a class="btn-sub hidden" id="adminProdBtn" href="/pianificazione-produzione.html">🏭 Piano Produzione &
+            Scorte</a>
           <a class="btn-sub" id="visitsBtn" href="/giro-visite.html">📅 Piano Marketing & Giro Visite</a>
           <a class="btn-sub hidden" id="adminConfigBtn" href="/configurazione.html">⚙️ Configurazione Google Drive</a>
-          <a class="btn-sub" id="manualDocBtn" href="/manuale-amministrazione.doc" download>📖 Manuale Operativo (.doc)</a>
+          <a class="btn-sub" id="manualDocBtn" href="/manuale-amministrazione.doc" download>📖 Manuale Operativo
+            (.doc)</a>
         </div>
       </div>
 
       <!-- Offline alert banner if offline or cached -->
       <div id="offlineNotice" class="offline-banner hidden">
         <span>📶</span>
-        <span id="offlineNoticeText">Modalità offline attiva: stai visualizzando le pratiche salvate sul dispositivo.</span>
+        <span id="offlineNoticeText">Modalità offline attiva: stai visualizzando le pratiche salvate sul
+          dispositivo.</span>
       </div>
 
       <!-- Recent Practices Card -->
@@ -708,23 +796,27 @@
         <div class="filter-bar">
           <div class="search-box">
             <span class="search-icon">🔍</span>
-            <input id="searchInput" type="search" placeholder="Cerca per cliente, numero documento, agente…" autocomplete="off">
+            <input id="searchInput" type="search" placeholder="Cerca per cliente, numero documento, agente…"
+              autocomplete="off">
             <button id="clearSearch" class="search-clear hidden" aria-label="Cancella ricerca">✕</button>
           </div>
         </div>
 
         <!-- Practices List -->
         <div id="rows" class="practices-list">
-          <div style="text-align:center; padding: 24px; color: var(--muted);">Caricamento pratiche da Google Sheets…</div>
+          <div style="text-align:center; padding: 24px; color: var(--muted);">Caricamento pratiche da Google Sheets…
+          </div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer style="text-align: center; padding: 24px 16px 36px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); margin-top: 36px;">
+  <footer
+    style="text-align: center; padding: 24px 16px 36px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); margin-top: 36px;">
     <div>© Pascal Milano / Pascal Cosmesi International — Sistema Gestionale Rete Vendite</div>
     <div style="margin-top: 6px;">
-      <a href="/privacy.html" style="color: var(--blue); text-decoration: none; font-weight: 500;">🔒 Informativa Privacy & Cookie Policy (GDPR Reg. UE 2016/679)</a>
+      <a href="/privacy.html" style="color: var(--blue); text-decoration: none; font-weight: 500;">🔒 Informativa
+        Privacy & Cookie Policy (GDPR Reg. UE 2016/679)</a>
     </div>
   </footer>
 
@@ -764,7 +856,7 @@
       });
       const text = await r.text();
       let d = {};
-      try { d = text ? JSON.parse(text) : {}; } catch {}
+      try { d = text ? JSON.parse(text) : {}; } catch { }
       if (!r.ok) {
         const err = new Error(d.error || 'Operazione non riuscita');
         err.status = r.status;
@@ -1039,7 +1131,7 @@
         try {
           const loc = JSON.parse(localStorage.getItem(`submission-${offerNumber}`) || '{}');
           lines = loc.payload?.lines || [];
-        } catch {}
+        } catch { }
       }
 
       const offerState = {
@@ -1160,13 +1252,13 @@
       try {
         $('rows').innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">Sincronizzazione registro Google Sheets…</div>';
         if (window.companyConfigPromise) {
-          try { await window.companyConfigPromise; } catch {}
+          try { await window.companyConfigPromise; } catch { }
         }
         const rawRepo = window.companyConfig?.repository?.spreadsheetId;
         const repoId = (rawRepo && rawRepo.length >= 20 && !rawRepo.includes('1mnW')) ? rawRepo : '1Hi1Nppj4szI4UwfSeC632KkpF0dEQjqxnIVIenn-Fjc';
         const regParam = `?id=${encodeURIComponent(repoId)}`;
         const [a, b] = await Promise.all([api(`offers${regParam}`), api(`orders${regParam}`)]);
-        
+
         allPractices = [
           ...(a.offers || []).map(x => ({ ...x, type: 'Offerta', number: x.offer_number || x.offerNumber || x.number })),
           ...(b.orders || []).map(x => ({ ...x, type: 'Ordine', number: x.order_number || x.orderNumber || x.number }))
@@ -1225,7 +1317,7 @@
     $('logout').onclick = async () => {
       try {
         await api('logout', { method: 'POST', body: '{}' });
-      } catch {}
+      } catch { }
       localStorage.removeItem('oa_session_user');
       localStorage.removeItem('oa_session_token');
       localStorage.removeItem('oa_cached_practices');
@@ -1236,4 +1328,5 @@
     load();
   </script>
 </body>
+
 </html>

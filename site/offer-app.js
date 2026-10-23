@@ -78,11 +78,11 @@ function normalizeAgentCode(val) {
     const aUser = String(a.username || a.code || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const aEmail = String(a.email || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
     return cleanKey === aCode ||
-           cleanKey === aName ||
-           (aName && (cleanKey.includes(aName) || aName.includes(cleanKey))) ||
-           cleanKey === aUser ||
-           cleanKey === aEmail ||
-           (aCode.replace(/\D+/g, '') && aCode.replace(/\D+/g, '') === cleanKey.replace(/\D+/g, ''));
+      cleanKey === aName ||
+      (aName && (cleanKey.includes(aName) || aName.includes(cleanKey))) ||
+      cleanKey === aUser ||
+      cleanKey === aEmail ||
+      (aCode.replace(/\D+/g, '') && aCode.replace(/\D+/g, '') === cleanKey.replace(/\D+/g, ''));
   });
   if (matched) return matched.id;
   return s;
@@ -95,15 +95,15 @@ async function checkUserSession() {
       const data = await res.json();
       if (data && data.user) {
         currentUser = data.user;
-        try { localStorage.setItem('oa_session_user', JSON.stringify(currentUser)); } catch {}
+        try { localStorage.setItem('oa_session_user', JSON.stringify(currentUser)); } catch { }
         return currentUser;
       }
     }
-  } catch {}
+  } catch { }
   try {
     const cached = localStorage.getItem('oa_session_user');
     if (cached) currentUser = JSON.parse(cached);
-  } catch {}
+  } catch { }
   return currentUser;
 }
 
@@ -204,7 +204,7 @@ async function loadData() {
   if (navigator.onLine) {
     try {
       if (window.companyConfigPromise) {
-        try { await window.companyConfigPromise; } catch {}
+        try { await window.companyConfigPromise; } catch { }
       }
       const def = window.OFFICIAL_SYSTEM_SPREADSHEETS || {
         company: { spreadsheetId: "1-ntNPKA3gdjZaxYntGNkXtKC5Kt4JIXGSoQfESO169M", tab: "Dati azienda" },
@@ -246,7 +246,7 @@ async function loadData() {
         const d = await compRes.json();
         if (d.company && Object.keys(d.company).length > 0) {
           companyProfile = { ...companyProfile, ...d.company };
-          await dbSet('company-profile', companyProfile).catch(() => {});
+          await dbSet('company-profile', companyProfile).catch(() => { });
         }
       }
 
@@ -256,7 +256,7 @@ async function loadData() {
           AGENTS = d.agents;
           agentById = Object.fromEntries(AGENTS.map(a => [a.id, a]));
           hierarchy = d.hierarchy || hierarchy;
-          await dbSet('agents-data', { agents: AGENTS, hierarchy }).catch(() => {});
+          await dbSet('agents-data', { agents: AGENTS, hierarchy }).catch(() => { });
         }
       }
 
@@ -282,7 +282,7 @@ async function loadData() {
         agentCount: AGENTS.length
       };
 
-      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => {});
+      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => { });
     } catch (err) {
       console.warn('Connessione API non riuscita, uso la cache locale:', err);
     }
@@ -508,7 +508,7 @@ function showCustomer() {
   if (c.sdi) extraBadges.push(`SDI: ${c.sdi}`);
   if (c.iban) extraBadges.push(`IBAN: ${c.iban}`);
   if (c.bank) extraBadges.push(`Banca: ${c.bank}`);
-  
+
   // Politica Sconti (Google Drive) - Solo indicativa, non vincolante
   if (c.maxDiscount != null && Number(c.maxDiscount) > 0) {
     extraBadges.push(`🏷️ Sconto rif.: ${c.maxDiscount}%`);
@@ -644,7 +644,7 @@ async function saveCustomerCard() {
       clients.push(updated);
     }
 
-    await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => {});
+    await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => { });
     renderCustomers(updated.id || id);
     showCustomer();
     renderOffer();
@@ -976,7 +976,7 @@ async function sendSubmission(payload) {
   try {
     localStorage.setItem(`submission-${number}`, JSON.stringify(payload));
     localStorage.setItem(`submission-payload-${number}`, JSON.stringify(payload));
-  } catch {}
+  } catch { }
   const hdrs = { 'content-type': 'application/json', 'accept': 'application/json' };
   const token = localStorage.getItem('oa_session_token');
   if (token) hdrs['Authorization'] = 'Bearer ' + token;
@@ -1228,7 +1228,7 @@ function bindEvents() {
       c.payment = newPay;
       const idx = clients.findIndex(x => String(x.id) === String(c.id));
       if (idx >= 0) clients[idx].payment = newPay;
-      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => {});
+      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => { });
       fetch('/api/customers/update', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -1246,7 +1246,7 @@ function bindEvents() {
       c.payment = newPay;
       const idx = clients.findIndex(x => String(x.id) === String(c.id));
       if (idx >= 0) clients[idx].payment = newPay;
-      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => {});
+      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => { });
       fetch('/api/customers/update', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -1390,7 +1390,7 @@ function bindEvents() {
       renderCustomers(savedCustomer.id);
       $('customerDialog').close();
       $('customerForm').reset();
-      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => {});
+      await dbSet('dataset', { meta: dataMeta, articles: products, clients }).catch(() => { });
       toast(`Cliente "${savedCustomer.name}" salvato su Google Sheets e assegnato`);
     }
   };
