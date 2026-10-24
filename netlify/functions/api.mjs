@@ -3117,6 +3117,393 @@ async function recordWarehouseMovement(entry, user, customId) {
   };
 }
 
+// -------------------------------------------------------------
+// INTER-WAREHOUSE TRANSFERS & PALLET TRACKING (MOVIMENTO DI SEDE)
+// -------------------------------------------------------------
+
+const DEFAULT_SEED_TRANSFERS = [
+  {
+    id: 'MOV-20261023-001',
+    palletCode: 'PAL-20261023-001',
+    palletBarcode: 'PAL-20261023-001',
+    createdAt: '2026-10-23T09:30:00.000Z',
+    originSede: 'Sede 1 - Magazzino Centrale (Milano)',
+    destinationSede: 'Sede 2 - Deposito Territoriale (Sovigliana - FI)',
+    status: 'in_transito',
+    departureDate: '2026-10-23T11:00:00.000Z',
+    arrivalDate: null,
+    operatorDeparture: 'Logistica Centrale',
+    operatorArrival: '',
+    carrier: 'Mezzo Aziendale (Iveco Daily)',
+    palletType: 'Europallet Standard 80x120',
+    totalBoxes: 18,
+    totalPieces: 540,
+    notes: 'Rifornimento periodico linea trattamenti e packaging',
+    items: [
+      {
+        code: '1610',
+        barcode: '8001610002451',
+        description: 'Crema Viso Idratante Intensiva 50ml',
+        boxes: 12,
+        piecesPerBox: 30,
+        totalPieces: 360,
+        pickedPieces: 0,
+        remainingPieces: 360,
+        lotNumber: 'L2410-01',
+        notes: 'Scatole sigillate'
+      },
+      {
+        code: '1620',
+        barcode: '8001620003125',
+        description: 'Siero Rigenerante Notte Vitamina C 30ml',
+        boxes: 6,
+        piecesPerBox: 30,
+        totalPieces: 180,
+        pickedPieces: 0,
+        remainingPieces: 180,
+        lotNumber: 'L2410-04',
+        notes: 'Fragile'
+      }
+    ],
+    pickupHistory: []
+  }
+];
+
+let inMemoryTransfersCache = null;
+
+async function fetchWarehouseTransfers(customId) {
+  const regId = cleanEnvId(customId) || cleanEnvId(runtimeConfig.warehouse?.spreadsheetId) || cleanEnvId(runtimeConfig.repository.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const tabName = 'Movimenti_Sede';
+
+  try {
+    await ensureSheetTab(regId, tabName);
+    const rows = await readRange(regId, `'${tabName}'!A1:R500`).catch(() => []);
+    
+    if (!rows || rows.length <= 1) {
+      const headers = [
+        'ID Movimento', 'Codice Bancale', 'Barcode Bancale', 'Data Creazione', 
+        'Sede Origine', 'Sede Destinazione', 'Stato Trasferimento', 'Data Partenza', 
+        'Data Arrivo', 'Operatore Partenza', 'Operatore Ricezione', 'Vettore', 
+        'Tipo Bancale', 'Totale Scatole', 'Totale Pezzi', 'Dettaglio Articoli (JSON)', 
+        'Storico Prelievi (JSON)', 'Note'
+      ];
+      await updateRow(regId, `'${tabName}'!A1:R1`, [headers]).catch(() => {});
+      if (!inMemoryTransfersCache) inMemoryTransfersCache = [...DEFAULT_SEED_TRANSFERS];
+      return inMemoryTransfersCache;
+    }
+
+    const header = (rows[0] || []).map(c => String(c || '').toLowerCase().trim());
+    const col = patterns => {
+      const pts = Array.isArray(patterns) ? patterns : [patterns];
+      return header.findIndex(h => pts.some(p => h.includes(p)));
+    };
+
+    const idIdx = col(['id movimento', 'id']);
+    const palletCodeIdx = col(['codice bancale', 'bancale']);
+    const barcodeIdx = col(['barcode bancale', 'barcode']);
+    const createdIdx = col(['data creazione', 'creazione']);
+    const origIdx = col(['sede origine', 'origine', 'partenza']);
+    const destIdx = col(['sede destinazione', 'destinazione', 'arrivo']);
+    const statusIdx = col(['stato trasferimento', 'stato']);
+    const depDateIdx = col(['data partenza']);
+    const arrDateIdx = col(['data arrivo']);
+    const opDepIdx = col(['operatore partenza']);
+    const opArrIdx = col(['operatore ricezione', 'operatore arrivo']);
+    const carrierIdx = col(['vettore', 'mezzo']);
+    const palletTypeIdx = col(['tipo bancale']);
+    const boxesIdx = col(['totale scatole', 'scatole']);
+    const piecesIdx = col(['totale pezzi', 'pezzi']);
+    const itemsIdx = col(['dettaglio articoli', 'articoli', 'items']);
+    const historyIdx = col(['storico prelievi', 'prelievi']);
+    const notesIdx = col(['note']);
+
+    const transfers = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.some(cell => String(cell || '').trim())) continue;
+
+      let items = [];
+      const itemsRaw = itemsIdx >= 0 ? cleanCell(r[itemsIdx]) : '';
+      if (itemsRaw && itemsRaw.startsWith('[')) {
+        try { items = JSON.parse(itemsRaw); } catch {}
+      }
+
+      let pickupHistory = [];
+      const histRaw = historyIdx >= 0 ? cleanCell(r[historyIdx]) : '';
+      if (histRaw && histRaw.startsWith('[')) {
+        try { pickupHistory = JSON.parse(histRaw); } catch {}
+      }
+
+      transfers.push({
+        id: (idIdx >= 0 ? cleanCell(r[idIdx]) : '') || `MOV-${i}`,
+        palletCode: (palletCodeIdx >= 0 ? cleanCell(r[palletCodeIdx]) : '') || `PAL-${i}`,
+        palletBarcode: (barcodeIdx >= 0 ? cleanCell(r[barcodeIdx]) : '') || (palletCodeIdx >= 0 ? cleanCell(r[palletCodeIdx]) : ''),
+        createdAt: createdIdx >= 0 ? cleanCell(r[createdIdx]) : '',
+        originSede: origIdx >= 0 ? cleanCell(r[origIdx]) : 'Sede 1 - Magazzino Centrale (Milano)',
+        destinationSede: destIdx >= 0 ? cleanCell(r[destIdx]) : 'Sede 2 - Deposito Territoriale (Sovigliana - FI)',
+        status: (statusIdx >= 0 ? cleanCell(r[statusIdx]) : '') || 'allestito',
+        departureDate: depDateIdx >= 0 ? cleanCell(r[depDateIdx]) : null,
+        arrivalDate: arrDateIdx >= 0 ? cleanCell(r[arrDateIdx]) : null,
+        operatorDeparture: opDepIdx >= 0 ? cleanCell(r[opDepIdx]) : '',
+        operatorArrival: opArrIdx >= 0 ? cleanCell(r[opArrIdx]) : '',
+        carrier: carrierIdx >= 0 ? cleanCell(r[carrierIdx]) : '',
+        palletType: palletTypeIdx >= 0 ? cleanCell(r[palletTypeIdx]) : 'Europallet Standard 80x120',
+        totalBoxes: boxesIdx >= 0 ? Number(cleanCell(r[boxesIdx])) || 0 : 0,
+        totalPieces: piecesIdx >= 0 ? Number(cleanCell(r[piecesIdx])) || 0 : 0,
+        items,
+        pickupHistory,
+        notes: notesIdx >= 0 ? cleanCell(r[notesIdx]) : ''
+      });
+    }
+
+    inMemoryTransfersCache = transfers;
+    return transfers;
+  } catch (err) {
+    console.warn('Errore lettura Movimenti_Sede da Google Sheets, utilizzo fallback memoria:', err.message);
+    if (!inMemoryTransfersCache) inMemoryTransfersCache = [...DEFAULT_SEED_TRANSFERS];
+    return inMemoryTransfersCache;
+  }
+}
+
+async function saveWarehouseTransfer(transfer, user, customId) {
+  const regId = cleanEnvId(customId) || cleanEnvId(runtimeConfig.warehouse?.spreadsheetId) || cleanEnvId(runtimeConfig.repository.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const tabName = 'Movimenti_Sede';
+  await ensureSheetTab(regId, tabName);
+
+  const now = new Date().toISOString();
+  const d = new Date();
+  const dateCompact = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  
+  const id = transfer.id || `MOV-${dateCompact}-${Math.floor(Math.random() * 900 + 100)}`;
+  const palletCode = transfer.palletCode || `PAL-${dateCompact}-${Math.floor(Math.random() * 900 + 100)}`;
+  const palletBarcode = transfer.palletBarcode || palletCode;
+  const createdAt = transfer.createdAt || now;
+  const originSede = transfer.originSede || 'Sede 1 - Magazzino Centrale (Milano)';
+  const destinationSede = transfer.destinationSede || 'Sede 2 - Deposito Territoriale (Sovigliana - FI)';
+  const status = transfer.status || 'allestito';
+  const operatorDeparture = user?.name || user?.username || transfer.operatorDeparture || 'Operatore Magazzino';
+  const operatorArrival = transfer.operatorArrival || '';
+  const carrier = transfer.carrier || 'Mezzo Aziendale';
+  const palletType = transfer.palletType || 'Europallet Standard 80x120';
+  const items = Array.isArray(transfer.items) ? transfer.items : [];
+  
+  let totalBoxes = 0;
+  let totalPieces = 0;
+  items.forEach(it => {
+    const b = Number(it.boxes) || 0;
+    const p = Number(it.piecesPerBox) || 0;
+    const tot = it.totalPieces != null ? Number(it.totalPieces) : (b * p);
+    it.boxes = b;
+    it.piecesPerBox = p;
+    it.totalPieces = tot;
+    it.remainingPieces = it.remainingPieces != null ? Number(it.remainingPieces) : tot;
+    it.pickedPieces = it.pickedPieces != null ? Number(it.pickedPieces) : 0;
+    totalBoxes += b;
+    totalPieces += tot;
+  });
+
+  const row = [
+    id,
+    palletCode,
+    palletBarcode,
+    createdAt,
+    originSede,
+    destinationSede,
+    status,
+    transfer.departureDate || '',
+    transfer.arrivalDate || '',
+    operatorDeparture,
+    operatorArrival,
+    carrier,
+    palletType,
+    totalBoxes,
+    totalPieces,
+    JSON.stringify(items),
+    JSON.stringify(transfer.pickupHistory || []),
+    transfer.notes || ''
+  ];
+
+  try {
+    await append(regId, `'${tabName}'!A:R`, [row]);
+  } catch (err) {
+    console.warn('Errore append su Google Sheets Movimenti_Sede:', err.message);
+  }
+
+  const createdObj = {
+    id,
+    palletCode,
+    palletBarcode,
+    createdAt,
+    originSede,
+    destinationSede,
+    status,
+    departureDate: transfer.departureDate || null,
+    arrivalDate: transfer.arrivalDate || null,
+    operatorDeparture,
+    operatorArrival,
+    carrier,
+    palletType,
+    totalBoxes,
+    totalPieces,
+    items,
+    pickupHistory: transfer.pickupHistory || [],
+    notes: transfer.notes || ''
+  };
+
+  if (!inMemoryTransfersCache) inMemoryTransfersCache = [];
+  inMemoryTransfersCache.unshift(createdObj);
+
+  return { ok: true, id, palletCode, transfer: createdObj };
+}
+
+async function updateTransferStatus(palletIdOrCode, updateData, user, customId) {
+  const regId = cleanEnvId(customId) || cleanEnvId(runtimeConfig.warehouse?.spreadsheetId) || cleanEnvId(runtimeConfig.repository.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const tabName = 'Movimenti_Sede';
+  
+  const searchCode = String(palletIdOrCode || '').trim();
+  if (!searchCode) throw new Error('Codice o ID bancale obbligatorio');
+
+  const rows = await readRange(regId, `'${tabName}'!A1:R500`).catch(() => []);
+  let targetRowIdx = -1;
+
+  if (rows && rows.length > 1) {
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (cleanCell(r[0]) === searchCode || cleanCell(r[1]) === searchCode || cleanCell(r[2]) === searchCode) {
+        targetRowIdx = i;
+        break;
+      }
+    }
+  }
+
+  const now = new Date().toISOString();
+  const operatorName = user?.name || user?.username || updateData.operator || 'Operatore';
+
+  if (targetRowIdx >= 0) {
+    const r = [...rows[targetRowIdx]];
+    while (r.length < 18) r.push('');
+    
+    if (updateData.status) r[6] = updateData.status;
+    if (updateData.departureDate) r[7] = updateData.departureDate;
+    else if (updateData.status === 'in_transito' && !r[7]) r[7] = now;
+
+    if (updateData.arrivalDate) r[8] = updateData.arrivalDate;
+    else if (updateData.status === 'ricevuto' && !r[8]) r[8] = now;
+
+    if (updateData.status === 'in_transito' && !r[9]) r[9] = operatorName;
+    if (updateData.status === 'ricevuto') r[10] = operatorName;
+    if (updateData.notes) r[17] = updateData.notes;
+
+    const sheetRowNum = targetRowIdx + 1;
+    await updateRow(regId, `'${tabName}'!A${sheetRowNum}:R${sheetRowNum}`, [r]).catch(() => {});
+  }
+
+  // Update in memory
+  if (inMemoryTransfersCache) {
+    const t = inMemoryTransfersCache.find(x => x.id === searchCode || x.palletCode === searchCode || x.palletBarcode === searchCode);
+    if (t) {
+      if (updateData.status) t.status = updateData.status;
+      if (updateData.status === 'in_transito') {
+        t.departureDate = updateData.departureDate || now;
+        t.operatorDeparture = t.operatorDeparture || operatorName;
+      }
+      if (updateData.status === 'ricevuto') {
+        t.arrivalDate = updateData.arrivalDate || now;
+        t.operatorArrival = operatorName;
+      }
+    }
+  }
+
+  return { ok: true, palletCode: searchCode, status: updateData.status, timestamp: now };
+}
+
+async function recordPartialPickup(palletIdOrCode, pickupData, user, customId) {
+  const regId = cleanEnvId(customId) || cleanEnvId(runtimeConfig.warehouse?.spreadsheetId) || cleanEnvId(runtimeConfig.repository.spreadsheetId) || OFFICIAL_SYSTEM_SPREADSHEETS.repository.spreadsheetId;
+  const tabName = 'Movimenti_Sede';
+  
+  const searchCode = String(palletIdOrCode || '').trim();
+  if (!searchCode) throw new Error('Codice o ID bancale obbligatorio');
+
+  const rows = await readRange(regId, `'${tabName}'!A1:R500`).catch(() => []);
+  let targetRowIdx = -1;
+  let existingItems = [];
+  let existingHistory = [];
+
+  if (rows && rows.length > 1) {
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (cleanCell(r[0]) === searchCode || cleanCell(r[1]) === searchCode || cleanCell(r[2]) === searchCode) {
+        targetRowIdx = i;
+        try { existingItems = JSON.parse(cleanCell(r[15]) || '[]'); } catch {}
+        try { existingHistory = JSON.parse(cleanCell(r[16]) || '[]'); } catch {}
+        break;
+      }
+    }
+  }
+
+  const now = new Date().toISOString();
+  const operatorName = user?.name || user?.username || pickupData.operator || 'Operatore Ricezione';
+  const itemCode = String(pickupData.code || pickupData.articleCode || '').trim();
+  const piecesToPick = Number(pickupData.pieces) || (Number(pickupData.boxes || 0) * Number(pickupData.piecesPerBox || 1));
+
+  if (!itemCode) throw new Error('Codice articolo da prelevare obbligatorio');
+  if (piecesToPick <= 0) throw new Error('La quantità da prelevare deve essere maggiore di zero');
+
+  const item = existingItems.find(it => it.code === itemCode);
+  if (!item) throw new Error(`Articolo "${itemCode}" non trovato nel bancale ${searchCode}`);
+
+  const currentRem = item.remainingPieces != null ? item.remainingPieces : item.totalPieces;
+  if (piecesToPick > currentRem) {
+    throw new Error(`Quantità richiesta (${piecesToPick} pz) superiore alla disponibilità sul bancale (${currentRem} pz)`);
+  }
+
+  item.pickedPieces = (item.pickedPieces || 0) + piecesToPick;
+  item.remainingPieces = currentRem - piecesToPick;
+
+  const pickupRecord = {
+    date: now,
+    operator: operatorName,
+    code: itemCode,
+    description: item.description,
+    boxesPicked: Number(pickupData.boxes) || Math.floor(piecesToPick / (item.piecesPerBox || 1)),
+    piecesPicked: piecesToPick,
+    remainingPieces: item.remainingPieces,
+    reason: pickupData.reason || 'Prelievo parziale a magazzino',
+    destinationSede: pickupData.destinationSede || ''
+  };
+  existingHistory.unshift(pickupRecord);
+
+  const anyRemaining = existingItems.some(it => (it.remainingPieces || 0) > 0);
+  const newStatus = anyRemaining ? 'parziale' : 'esaurito';
+
+  if (targetRowIdx >= 0) {
+    const r = [...rows[targetRowIdx]];
+    while (r.length < 18) r.push('');
+    r[6] = newStatus;
+    r[15] = JSON.stringify(existingItems);
+    r[16] = JSON.stringify(existingHistory);
+    const sheetRowNum = targetRowIdx + 1;
+    await updateRow(regId, `'${tabName}'!A${sheetRowNum}:R${sheetRowNum}`, [r]).catch(() => {});
+  }
+
+  if (inMemoryTransfersCache) {
+    const t = inMemoryTransfersCache.find(x => x.id === searchCode || x.palletCode === searchCode || x.palletBarcode === searchCode);
+    if (t) {
+      t.status = newStatus;
+      t.items = existingItems;
+      t.pickupHistory = existingHistory;
+    }
+  }
+
+  return {
+    ok: true,
+    palletCode: searchCode,
+    status: newStatus,
+    pickup: pickupRecord,
+    updatedItems: existingItems
+  };
+}
+
 async function calculateProductionIntelligence(user, customProductsId, customRepositoryId) {
   // 1. Fetch live products from Google Sheets Articoli
   const prRes = await fetchProductsData(customProductsId);
@@ -3840,6 +4227,46 @@ export default async (request, context) => {
       try {
         const ok = await setupWarehouseSpreadsheet(customId);
         return json(200, { ok, spreadsheetId: customId, message: ok ? 'Foglio Magazzino inizializzato e formattato con successo' : 'Inizializzazione completata o già attiva' });
+      } catch (err) {
+        return json(400, { error: err.message });
+      }
+    }
+
+    // Inter-Warehouse Transfers & Pallet Movement (Movimento di Sede)
+    if (path === 'warehouse/transfers' && request.method === 'GET') {
+      const customId = url.searchParams.get('id') || undefined;
+      const transfers = await fetchWarehouseTransfers(customId);
+      return json(200, { ok: true, transfers });
+    }
+
+    if (path === 'warehouse/transfers' && request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      const customId = url.searchParams.get('id') || undefined;
+      try {
+        const result = await saveWarehouseTransfer(body, user, customId);
+        return json(200, result);
+      } catch (err) {
+        return json(400, { error: err.message });
+      }
+    }
+
+    if (path === 'warehouse/transfers/update-status' && request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      const customId = url.searchParams.get('id') || undefined;
+      try {
+        const result = await updateTransferStatus(body.palletCode || body.id, body, user, customId);
+        return json(200, result);
+      } catch (err) {
+        return json(400, { error: err.message });
+      }
+    }
+
+    if (path === 'warehouse/transfers/partial-pickup' && request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      const customId = url.searchParams.get('id') || undefined;
+      try {
+        const result = await recordPartialPickup(body.palletCode || body.id, body, user, customId);
+        return json(200, result);
       } catch (err) {
         return json(400, { error: err.message });
       }

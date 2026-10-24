@@ -540,6 +540,760 @@
     .order-info-item label { display: block; font-size: .72rem; text-transform: uppercase; color: var(--muted); font-weight: 750; margin-bottom: 2px; }
     .order-info-item strong { color: #1e293b; font-size: .92rem; }
     .summary-box-grid { display: grid; grid-template-columns: 1fr auto; gap: 16px; background: #f1f5f9; border-radius: 10px; padding: 14px 18px; margin-top: 14px; align-items: center; }
+
+    /* ------------------------------------------------------------- */
+    /* INTER-WAREHOUSE TRANSFERS & PALLET MOVEMENTS (MOVIMENTO DI SEDE) */
+    /* ------------------------------------------------------------- */
+    .status-allestito { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .status-in_transito { background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; font-weight: 800; }
+    .status-ricevuto { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .status-parziale { background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; }
+
+    .transfer-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      transition: all .2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .transfer-card:hover {
+      border-color: #7dd3fc;
+      box-shadow: 0 10px 25px rgba(2, 132, 199, 0.08);
+    }
+    .transfer-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pallet-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: monospace;
+      font-size: 1.05rem;
+      font-weight: 850;
+      color: #0c4a6e;
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .route-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: .88rem;
+    }
+    .route-hub {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .route-hub small {
+      font-size: .7rem;
+      text-transform: uppercase;
+      font-weight: 750;
+      color: var(--muted);
+    }
+    .route-hub strong {
+      color: #1e293b;
+    }
+    .route-arrow {
+      color: #0284c7;
+      font-size: 1.25rem;
+      font-weight: 800;
+      padding: 0 6px;
+    }
+    .transfer-items-summary {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .item-pill {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: .78rem;
+      color: #334155;
+    }
+    .item-pill strong {
+      color: #0f172a;
+    }
+
+    /* Barcode SVG Rendering Box */
+    .barcode-svg-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      background: #fff;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .barcode-svg-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .barcode-label-text {
+      font-family: monospace;
+      font-size: .78rem;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: .08em;
+      margin-top: 2px;
+    }
+
+    /* Camera Scanner Viewfinder */
+    .scanner-viewfinder {
+      position: relative;
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0f172a;
+      aspect-ratio: 4/3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scanner-video-element {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scanner-target-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 75%;
+      height: 60%;
+      border: 2px dashed #38bdf8;
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+    }
+    .scanner-target-laser {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+      animation: laserScan 2s infinite ease-in-out alternate;
+    }
+    @keyframes laserScan {
+      0% { top: 8%; opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { top: 92%; opacity: 0.6; }
+    }
+
+    /* A4 Movement Sheet (Packing list del Bancale) */
+    .transfer-sheet {
+      background: #fff;
+      color: #0f172a;
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 0;
+      width: 100%;
+      max-width: 195mm;
+      box-sizing: border-box;
+      margin: 0 auto;
+      font-size: 9.5px;
+      line-height: 1.3;
+    }
+    .transfer-sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .transfer-sheet-hero {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 14px;
+      border: 2px solid #0f172a;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .transfer-sheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #000;
+      margin-bottom: 12px;
+    }
+    .transfer-sheet-table th, .transfer-sheet-table td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .transfer-sheet-table th {
+      background: #f1f5f9;
+      font-size: 8.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .transfer-sheet-sign {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .transfer-sign-box {
+      border: 1px solid #000;
+      padding: 6px 8px;
+      min-height: 56px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .transfer-sign-label {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #333;
+    }
+    .transfer-sign-line {
+      border-bottom: 1px dotted #64748b;
+      margin-top: 24px;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* SMARTPHONE MOBILE-FIRST ADAPTIVE STYLES (≤ 768px)             */
+    /* ------------------------------------------------------------- */
+    .mobile-only { display: none !important; }
+    .desktop-only { display: inherit !important; }
+    .transfer-mobile-items { display: none; }
+
+    @media (max-width: 768px) {
+      .mobile-only { display: inherit !important; }
+      .desktop-only { display: none !important; }
+
+      /* Topbar adjustments */
+      .topbar {
+        height: auto;
+        min-height: 56px;
+        padding: 8px 12px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand {
+        gap: 8px;
+      }
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        font-size: .8rem;
+      }
+      .brand strong {
+        font-size: .95rem;
+      }
+      .heading-actions {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        gap: 6px;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+        margin-left: auto;
+      }
+      .heading-actions::-webkit-scrollbar { display: none; }
+      .heading-actions .btn {
+        padding: 6px 10px;
+        font-size: .78rem;
+        flex: 0 0 auto;
+      }
+
+      /* Main Shell & Padding */
+      .workflow-shell {
+        padding: 12px 10px 60px;
+      }
+      .workflow-header {
+        margin-bottom: 14px;
+        gap: 10px;
+      }
+      .workflow-title h1 {
+        font-size: 1.25rem;
+      }
+      .workflow-title p {
+        font-size: .78rem;
+        line-height: 1.35;
+      }
+
+      /* Mode Switcher Bar on Smartphone */
+      .mode-switch-bar {
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 4px;
+        padding: 4px;
+        margin-bottom: 14px;
+        border-radius: 10px;
+      }
+      .mode-switch-bar::-webkit-scrollbar { display: none; }
+      .mode-switch-btn {
+        flex: 1 0 auto;
+        padding: 10px 12px;
+        font-size: .8rem;
+        white-space: nowrap;
+        border-radius: 8px;
+        min-height: 42px;
+      }
+
+      /* Action Buttons on Smartphone */
+      .workflow-header > div:last-child {
+        width: 100%;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+      }
+      .workflow-header > div:last-child .btn {
+        width: 100%;
+        padding: 11px 8px;
+        font-size: .8rem;
+        text-align: center;
+        justify-content: center;
+        min-height: 44px;
+      }
+      .workflow-header > div:last-child #btnNewTransfer {
+        grid-column: 1 / -1;
+        font-size: .95rem !important;
+        padding: 13px !important;
+      }
+      .workflow-header > div:last-child #btnQuickScanTransit {
+        grid-column: 1 / -1;
+        font-size: .9rem !important;
+        padding: 11px !important;
+      }
+
+      /* Stats KPI Grid on Smartphone */
+      .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .stat-pill {
+        padding: 10px 12px;
+        border-radius: 10px;
+      }
+      .stat-pill small {
+        font-size: .68rem;
+      }
+      .stat-pill .num {
+        font-size: 1.35rem;
+      }
+      .stat-pill .sub {
+        font-size: .74rem;
+      }
+      .stats-row > div:nth-child(5) {
+        grid-column: 1 / -1;
+      }
+
+      /* Filter Tabs */
+      .filter-tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 6px;
+        gap: 4px;
+      }
+      .filter-tabs::-webkit-scrollbar { display: none; }
+      .tab-btn {
+        padding: 8px 10px;
+        font-size: .8rem;
+      }
+
+      /* Search Bar */
+      .search-bar {
+        margin-bottom: 14px;
+      }
+      .search-input {
+        padding: 10px 12px;
+        font-size: 16px; /* Prevents auto-zoom on iOS */
+      }
+
+      /* Order Cards on Smartphone */
+      .order-card {
+        padding: 14px 12px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        gap: 10px;
+      }
+      .order-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .order-main-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .order-num {
+        font-size: 1.05rem;
+      }
+      .order-customer {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #0b2942;
+        margin: 2px 0;
+        line-height: 1.25;
+      }
+      .order-agent {
+        font-size: .78rem;
+        color: #64748b;
+      }
+      .order-total {
+        font-size: 1.25rem;
+        font-weight: 850;
+        color: #0b2942;
+        background: #f1f5f9;
+        padding: 8px 12px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 4px 0 2px;
+      }
+      .order-total::before {
+        content: "Totale Ordine:";
+        font-size: .78rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+      }
+      .shipping-box {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 8px 10px;
+        font-size: .78rem;
+      }
+      .order-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding-top: 10px;
+        margin-top: 6px;
+      }
+      .order-actions .btn-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        width: 100%;
+      }
+      .order-actions .btn-group button {
+        width: 100%;
+        min-height: 42px;
+        font-size: .78rem;
+        padding: 8px 6px;
+        justify-content: center;
+        text-align: center;
+      }
+      .order-actions .btn-next-step {
+        grid-column: 1 / -1;
+        min-height: 46px;
+        font-size: .9rem !important;
+        font-weight: 800 !important;
+        box-shadow: 0 3px 10px rgba(2, 132, 199, 0.25);
+      }
+
+      /* Transfer Cards on Smartphone */
+      .transfer-card {
+        padding: 14px 12px;
+        border-radius: 12px;
+        gap: 10px;
+      }
+      .transfer-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .pallet-tag {
+        font-size: .95rem;
+        padding: 4px 8px;
+      }
+      .transfer-card-header > div:last-child {
+        width: 100%;
+        text-align: left !important;
+      }
+      .transfer-card-header .barcode-svg-container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        padding: 6px;
+      }
+      .route-display {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        font-size: .78rem;
+      }
+      .route-hub small {
+        font-size: .64rem;
+      }
+      .route-hub strong {
+        font-size: .8rem;
+        line-height: 1.25;
+      }
+      .route-arrow {
+        font-size: 1.1rem;
+        padding: 0 4px;
+      }
+
+      /* Mobile Card Items View */
+      .transfer-desktop-table {
+        display: none !important;
+      }
+      .transfer-mobile-items {
+        display: flex !important;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+      }
+      .mobile-item-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px 10px;
+      }
+      .mobile-item-header {
+        font-size: .84rem;
+        color: #1e293b;
+        margin-bottom: 4px;
+        line-height: 1.25;
+      }
+      .mobile-item-meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: .74rem;
+      }
+      .mobile-chip-barcode {
+        font-family: monospace;
+        font-weight: 700;
+        background: #f1f5f9;
+        color: #334155;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      .mobile-chip-boxes {
+        font-weight: 600;
+        background: #e0f2fe;
+        color: #0369a1;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      .mobile-chip-qty {
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 10px;
+        margin-left: auto;
+      }
+      .mobile-chip-qty.full { background: #dcfce7; color: #15803d; }
+      .mobile-chip-qty.partial { background: #f3e8ff; color: #7e22ce; }
+      .mobile-chip-qty.depleted { background: #fee2e2; color: #b91c1c; }
+
+      /* Card Actions on Smartphone */
+      .transfer-card > div:last-child {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px !important;
+      }
+      .transfer-card > div:last-child > div:first-child {
+        font-size: .82rem;
+        text-align: center;
+      }
+      .transfer-card-actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px !important;
+        width: 100%;
+      }
+      .transfer-card-actions button {
+        width: 100%;
+        padding: 10px 6px !important;
+        font-size: .78rem !important;
+        justify-content: center;
+        min-height: 44px;
+      }
+      .transfer-card-actions .btn-primary {
+        grid-column: 1 / -1;
+        font-size: .9rem !important;
+        padding: 12px 10px !important;
+      }
+
+      /* Modal Bottom Sheets & Forms on Smartphone */
+      dialog {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100% !important;
+        max-height: 100vh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        position: fixed !important;
+        inset: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #f8fafc !important;
+        z-index: 1000;
+      }
+      dialog:not([open]) {
+        display: none !important;
+      }
+      dialog > div,
+      dialog > form {
+        padding: 14px 12px 90px !important;
+        flex: 1;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        box-sizing: border-box;
+      }
+      dialog .dialog-head {
+        margin-bottom: 12px;
+      }
+      dialog .dialog-head h2 {
+        font-size: 1.15rem !important;
+      }
+      dialog .dialog-head p {
+        font-size: .78rem !important;
+      }
+      dialog .dialog-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border-top: 1px solid #cbd5e1;
+        padding: 12px 14px !important;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+        z-index: 1010;
+        margin: 0 !important;
+        display: flex;
+        gap: 8px;
+      }
+      dialog .dialog-actions button {
+        flex: 1;
+        padding: 12px 8px !important;
+        font-size: .88rem !important;
+        min-height: 46px;
+      }
+
+      /* Two Columns Grid Stacking */
+      .two-cols {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+      }
+
+      /* Order Details Modal on Smartphone */
+      .order-info-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        padding: 10px 12px !important;
+      }
+      .summary-box-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+      .summary-box-grid > div:last-child {
+        text-align: left !important;
+        border-top: 1px dashed #cbd5e1;
+        padding-top: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .details-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 10px 0;
+        border-radius: 8px;
+      }
+      .details-table {
+        min-width: 600px;
+        font-size: .8rem;
+      }
+      .details-table th, .details-table td {
+        padding: 8px 6px;
+      }
+
+      /* All Mobile Inputs */
+      .field input, .field select, .field textarea {
+        font-size: 16px !important; /* Prevents auto zoom */
+        padding: 10px 12px !important;
+      }
+
+      /* Step 2 in new transfer modal on smartphone */
+      .mobile-stack-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+      }
+      .mobile-boxpcs-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+      }
+      .mobile-boxpcs-grid > div:nth-child(3) {
+        grid-column: 1 / -1;
+      }
+      .mobile-boxpcs-grid > div:nth-child(5) {
+        grid-column: 1 / -1;
+      }
+      .mobile-boxpcs-grid > div:nth-child(5) button {
+        width: 100%;
+        padding: 12px !important;
+      }
+
+      /* Scanner Viewfinder on Smartphone */
+      .scanner-viewfinder {
+        max-width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 12px;
+      }
+      .scanner-target-reticle {
+        width: 80%;
+        height: 70%;
+      }
+
+      /* Production Table touch-scroll */
+      .prod-table {
+        min-width: 780px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -548,13 +1302,13 @@
       <span class="brand-mark">OA</span>
       <div>
         <strong>Offerte Agenti</strong>
-        <small>Gestione Ordini, Magazzino & DDT</small>
+        <small class="desktop-only">Gestione Ordini, Magazzino & DDT</small>
       </div>
     </div>
     <div class="heading-actions">
-      <a class="btn secondary" href="/pianificazione-produzione.html">🏭 Produzione & Scorte</a>
-      <a class="btn secondary" href="/">← Torna alle pratiche</a>
-      <a class="btn secondary" href="/configurazione.html">⚙️ Configurazione</a>
+      <a class="btn secondary" href="/pianificazione-produzione.html"><span class="desktop-only">🏭 Produzione &amp; Scorte</span><span class="mobile-only">🏭 Produzione</span></a>
+      <a class="btn secondary" href="/"><span class="desktop-only">← Torna alle pratiche</span><span class="mobile-only">← Pratiche</span></a>
+      <a class="btn secondary" href="/configurazione.html"><span class="desktop-only">⚙️ Configurazione</span><span class="mobile-only">⚙️ Config</span></a>
     </div>
   </header>
 
@@ -562,10 +1316,13 @@
     <!-- MODE SWITCHER -->
     <div class="mode-switch-bar">
       <button type="button" id="btnModeOrders" class="mode-switch-btn active" onclick="switchMainView('orders')">
-        📦 Pipeline Ordini & DDT
+        📦 <span class="desktop-only">Pipeline Ordini &amp; DDT</span><span class="mobile-only">Ordini &amp; DDT</span>
       </button>
       <button type="button" id="btnModeProduction" class="mode-switch-btn" onclick="switchMainView('production')">
-        🏭 Piano Produzione & Scorte Intelligenti (Google Drive)
+        🏭 <span class="desktop-only">Piano Produzione &amp; Scorte Intelligenti (Google Drive)</span><span class="mobile-only">Produzione &amp; Scorte</span>
+      </button>
+      <button type="button" id="btnModeTransfers" class="mode-switch-btn" onclick="switchMainView('transfers')">
+        🚚 MOVIMENTO DI SEDE
       </button>
     </div>
 
@@ -754,6 +1511,90 @@
             <div class="formula-tag">Q_prod = ⌈(MaxStock − Disp) / LottoMin⌉ × LottoMin</div>
           </div>
         </div>
+    <!-- SECTION 3: MOVIMENTO DI SEDE & GESTIONE LOGISTICA BANCALI -->
+    <section id="sectionTransfers" style="display:none;">
+      <div class="workflow-header">
+        <div class="workflow-title">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px;">
+            <h1>Movimento di Sede & Gestione Logistica Bancali</h1>
+            <span class="source-badge" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc;">
+              <span class="dot" style="background:#0284c7;"></span> Tracciamento Multi-Deposito & Barcode Live
+            </span>
+          </div>
+          <p>Movimentazione merce tra sedi logistiche con lettura ottica smartphone, identificativo bancale univoco, calcolo scatole/pezzi, packing list A4 e scarico parziale</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button type="button" id="btnNewTransfer" class="btn primary" onclick="openNewTransferModal()" style="background:#0284c7; font-weight:750;">
+            ➕ Nuovo Movimento di Sede
+          </button>
+          <button type="button" id="btnQuickScanTransit" class="btn secondary" onclick="openQuickTransitScanModal()" style="font-weight:700; border-color:#0284c7; color:#0284c7; background:#f0f9ff;">
+            📷 Scansione Rapida (Partenza / Arrivo)
+          </button>
+          <button type="button" id="btnOpenBarcodeGen" class="btn secondary" onclick="openBarcodeLabelGenerator()">
+            🏷️ Generatore Barcode & EAN-13
+          </button>
+          <button type="button" id="btnRefreshTransfers" class="btn secondary" onclick="loadTransfers()">
+            🔄 Aggiorna Movimenti
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI METRICS SUMMARY -->
+      <div class="stats-row">
+        <div class="stat-pill" style="border-left: 4px solid #f59e0b;">
+          <small>📋 In Allestimento</small>
+          <div class="num" id="transfStatAllestito">0</div>
+          <span class="sub" style="color:#d97706;">Bancali in preparazione</span>
+        </div>
+        <div class="stat-pill" style="border-left: 4px solid #0284c7;">
+          <small>🚚 In Transito</small>
+          <div class="num" id="transfStatInTransito" style="color:#0284c7;">0</div>
+          <span class="sub" style="color:#0369a1;">In viaggio tra le sedi</span>
+        </div>
+        <div class="stat-pill" style="border-left: 4px solid #10b981;">
+          <small>🏢 Ricevuti a Deposito</small>
+          <div class="num" id="transfStatRicevuto" style="color:#047857;">0</div>
+          <span class="sub" style="color:#059669;">Consegnati e presi in carico</span>
+        </div>
+        <div class="stat-pill" style="border-left: 4px solid #8b5cf6;">
+          <small>📦 Prelievi Parziali</small>
+          <div class="num" id="transfStatParziale" style="color:#6d28d9;">0</div>
+          <span class="sub" style="color:#7c3aed;">Bancali parzialmente scaricati</span>
+        </div>
+        <div class="stat-pill" style="border-left: 4px solid #64748b;">
+          <small>🔢 Pezzi Totali in Movimento</small>
+          <div class="num" id="transfStatPiecesTot">0</div>
+          <span class="sub" style="color:#475569;" id="transfStatBoxesTot">0 colli totali</span>
+        </div>
+      </div>
+
+      <!-- FILTER TABS -->
+      <div class="filter-tabs">
+        <button class="tab-btn active transf-tab" data-filter="all" onclick="setTransferFilter('all')">
+          Tutti i Movimenti <span class="badge" id="transfTabCountAll">0</span>
+        </button>
+        <button class="tab-btn transf-tab" data-filter="allestito" onclick="setTransferFilter('allestito')">
+          📋 In Allestimento <span class="badge" id="transfTabCountAllestito">0</span>
+        </button>
+        <button class="tab-btn transf-tab" data-filter="in_transito" onclick="setTransferFilter('in_transito')">
+          🚚 In Transito <span class="badge" id="transfTabCountInTransito">0</span>
+        </button>
+        <button class="tab-btn transf-tab" data-filter="ricevuto" onclick="setTransferFilter('ricevuto')">
+          🏢 Ricevuti <span class="badge" id="transfTabCountRicevuto">0</span>
+        </button>
+        <button class="tab-btn transf-tab" data-filter="parziale" onclick="setTransferFilter('parziale')">
+          📦 Parzializzati <span class="badge" id="transfTabCountParziale">0</span>
+        </button>
+      </div>
+
+      <!-- SEARCH BAR -->
+      <div class="search-bar">
+        <input type="text" id="transferSearchInput" class="search-input" placeholder="🔍 Cerca per codice bancale (PAL-...), barcode EAN, sede partenza/arrivo, prodotto o operatore…" oninput="renderTransfers()">
+      </div>
+
+      <!-- TRANSFERS LIST -->
+      <div id="transfersContainer">
+        <div style="text-align:center; padding: 40px; color: var(--muted);">Caricamento movimenti bancali in corso…</div>
       </div>
     </section>
   </main>
@@ -1126,6 +1967,413 @@
           <button type="button" class="btn secondary" onclick="$('editOrderLinesModal').close()">Annulla</button>
           <button type="button" class="btn primary" id="btnSaveOrderLinesToCloud" style="background:#0284c7; font-weight:750;">💾 Salva Articoli su Google Drive</button>
         </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============================================================= -->
+  <!-- MODALS PER MOVIMENTO DI SEDE & GESTIONE LOGISTICA BANCALI      -->
+  <!-- ============================================================= -->
+
+  <!-- MODAL: NUOVO MOVIMENTO DI SEDE (ALLESTIMENTO BANCALE) -->
+  <dialog id="newTransferModal" style="width: min(960px, calc(100vw - 28px)); max-height: calc(100vh - 40px); overflow-y: auto;">
+    <div style="padding: 24px;">
+      <div class="dialog-head" style="margin-bottom: 18px;">
+        <div>
+          <h2 style="font-size:1.35rem; font-weight:800; color:var(--navy); margin:0;">🚚 Nuovo Movimento di Sede &amp; Allestimento Bancale</h2>
+          <p style="margin:4px 0 0; color:var(--muted); font-size:.88rem;">Associa prodotti o componenti scansionando il barcode, inserisci scatole e pezzi, e assegna l'identificativo bancale univoco</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('newTransferModal').close()">✕</button>
+      </div>
+
+      <!-- STEP 1: PARAMETRI LOGISTICI -->
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:16px; margin-bottom:18px;">
+        <div style="font-weight:800; font-size:.9rem; color:#1e293b; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+          <span>1️⃣ Tratta Logistica &amp; Vettore</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
+          <div class="field">
+            <span>Sede di Partenza (Origine)</span>
+            <select id="newTransfOriginSede" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:600;">
+              <option value="Sede 1 - Magazzino Centrale (Milano)">🏢 Sede 1 - Magazzino Centrale (Milano)</option>
+              <option value="Sede 2 - Deposito Territoriale (Sovigliana - FI)">🏬 Sede 2 - Deposito Territoriale (Sovigliana - FI)</option>
+              <option value="Deposito Hub Nord (Bologna)">🏭 Deposito Hub Nord (Bologna)</option>
+              <option value="Deposito Hub Sud (Roma)">🏭 Deposito Hub Sud (Roma)</option>
+              <option value="Reparto Confezionamento &amp; Linea">⚙️ Reparto Confezionamento &amp; Linea</option>
+              <option value="Magazzino Semilavorati &amp; Flaconi">📦 Magazzino Semilavorati &amp; Flaconi</option>
+            </select>
+          </div>
+          <div class="field">
+            <span>Sede di Destinazione (Arrivo)</span>
+            <select id="newTransfDestSede" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:600;">
+              <option value="Sede 2 - Deposito Territoriale (Sovigliana - FI)">🏬 Sede 2 - Deposito Territoriale (Sovigliana - FI)</option>
+              <option value="Sede 1 - Magazzino Centrale (Milano)">🏢 Sede 1 - Magazzino Centrale (Milano)</option>
+              <option value="Deposito Hub Nord (Bologna)">🏭 Deposito Hub Nord (Bologna)</option>
+              <option value="Deposito Hub Sud (Roma)">🏭 Deposito Hub Sud (Roma)</option>
+              <option value="Reparto Confezionamento &amp; Linea">⚙️ Reparto Confezionamento &amp; Linea</option>
+              <option value="Magazzino Semilavorati &amp; Flaconi">📦 Magazzino Semilavorati &amp; Flaconi</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px;">
+          <div class="field">
+            <span>Vettore / Mezzo di Trasporto</span>
+            <input type="text" id="newTransfCarrier" value="Mezzo Aziendale (Iveco Daily)" placeholder="Es. Corriere GLS, Mezzo proprio...">
+          </div>
+          <div class="field">
+            <span>Tipologia Supporto</span>
+            <select id="newTransfPalletType" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#fff;">
+              <option value="Europallet Standard 80x120">Europallet Standard (80x120 cm)</option>
+              <option value="Bancale Fuori Misura 100x120">Bancale Fuori Misura (100x120 cm)</option>
+              <option value="Mezzo Bancale 60x80">Mezzo Bancale (60x80 cm)</option>
+              <option value="Colli Sfusi / Gabbia">Colli Sfusi / Roll / Gabbia</option>
+            </select>
+          </div>
+          <div class="field">
+            <span>Operatore Allestimento</span>
+            <input type="text" id="newTransfOperator" placeholder="Nome operatore">
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: INSERIMENTO ARTICOLI CON SCANSIONE & CALCOLO SCATOLE/PEZZI -->
+      <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:16px; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div style="font-weight:800; font-size:.9rem; color:#0369a1;">
+            2️⃣ Inserimento Prodotti / Componenti sul Bancale
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn secondary btn-sm" onclick="openCameraForDraftItem()" style="background:#fff; border-color:#0284c7; color:#0284c7; font-weight:750;">
+              📷 Scansiona con Fotocamera
+            </button>
+            <button type="button" class="btn secondary btn-sm" onclick="generateRandomEanForDraft()" style="background:#fff; border-color:#cbd5e1;">
+              🏷️ Genera EAN-13
+            </button>
+          </div>
+        </div>
+
+        <div class="mobile-stack-grid" style="display:grid; grid-template-columns: 1.4fr 2fr; gap:12px; align-items:flex-end;">
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">Codice a Barre / EAN-13 Articolo</label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="newTransfItemBarcode" placeholder="Es. 8001610002451 o spara..." style="flex:1; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; font-family:monospace; font-weight:700;" onchange="lookupBarcodeInCatalog(this.value)">
+              <button type="button" class="btn secondary btn-sm" onclick="lookupBarcodeInCatalog($('newTransfItemBarcode').value)" title="Cerca in catalogo">🔍</button>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">Seleziona da Catalogo Prodotti (oppure digita sotto)</label>
+            <select id="newTransfItemCatalogSelect" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-size:.85rem;" onchange="onDraftCatalogSelect(this)">
+              <option value="">-- Scegli dal catalogo prodotti/componenti --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mobile-stack-grid" style="display:grid; grid-template-columns: 1.2fr 2fr; gap:12px; margin-top:10px;">
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">Codice Articolo Interno</label>
+            <input type="text" id="newTransfItemCode" placeholder="Es. 1610 o COMP-04" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; font-weight:700;">
+          </div>
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">Descrizione Prodotto o Componente</label>
+            <input type="text" id="newTransfItemDesc" placeholder="Es. Crema Idratante Intensiva 50ml" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+          </div>
+        </div>
+
+        <!-- BOXES AND PIECES CALCULATION -->
+        <div class="mobile-boxpcs-grid" style="display:grid; grid-template-columns: 1fr 1fr 1.2fr 1fr auto; gap:10px; margin-top:10px; align-items:flex-end;">
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">N° Scatole (Colli)</label>
+            <input type="number" id="newTransfItemBoxes" min="1" value="5" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; font-weight:800; text-align:center;" oninput="updateDraftPcsCalc()">
+          </div>
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">Pezzi per Scatola</label>
+            <input type="number" id="newTransfItemPcsPerBox" min="1" value="24" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1; font-weight:800; text-align:center;" oninput="updateDraftPcsCalc()">
+          </div>
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#0369a1; margin-bottom:4px;">Pezzi Totali Inclusi</label>
+            <input type="text" id="newTransfItemTotalPcs" readonly value="120 pz" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #7dd3fc; background:#e0f2fe; color:#0369a1; font-weight:900; text-align:center; font-size:1.05rem;">
+          </div>
+          <div>
+            <label style="display:block; font-size:.76rem; font-weight:750; color:#334155; margin-bottom:4px;">Lotto / Note</label>
+            <input type="text" id="newTransfItemLot" placeholder="Es. L2610-A" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #cbd5e1;">
+          </div>
+          <div>
+            <button type="button" class="btn primary" onclick="addItemToDraftPallet()" style="background:#0284c7; padding:10px 18px; font-weight:750; white-space:nowrap;">
+              ➕ Aggiungi al Bancale
+            </button>
+          </div>
+        </div>
+
+        <!-- DRAFT PALLET ITEMS (DESKTOP TABLE & SMARTPHONE CARDS) -->
+        <div class="transfer-desktop-table" style="margin-top:14px; background:#fff; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden;">
+          <table style="width:100%; border-collapse:collapse; font-size:.85rem;">
+            <thead>
+              <tr style="background:#f1f5f9; text-transform:uppercase; font-size:.76rem; color:#475569;">
+                <th style="padding:8px 12px; text-align:left;">Barcode Articolo</th>
+                <th style="padding:8px 12px; text-align:left;">Codice &amp; Descrizione</th>
+                <th style="padding:8px 12px; text-align:center;">Scatole</th>
+                <th style="padding:8px 12px; text-align:center;">Pz/Scatola</th>
+                <th style="padding:8px 12px; text-align:center;">Totale Pezzi</th>
+                <th style="padding:8px 12px; text-align:left;">Lotto</th>
+                <th style="padding:8px 12px; text-align:center;">Rimuovi</th>
+              </tr>
+            </thead>
+            <tbody id="draftPalletItemsBody">
+              <tr>
+                <td colspan="7" style="text-align:center; padding:24px; color:var(--muted);">
+                  Nessun articolo ancora inserito su questo bancale. Scansiona o seleziona un prodotto sopra.
+                </td>
+              </tr>
+            </tbody>
+            <tfoot style="background:#f8fafc; font-weight:800; border-top:1px solid #e2e8f0;">
+              <tr>
+                <td colspan="2" style="padding:10px 12px; color:#1e293b;">TOTALE CARICO BANCALE:</td>
+                <td style="padding:10px 12px; text-align:center; color:#0284c7;" id="draftSummaryBoxes">0 scatole</td>
+                <td></td>
+                <td style="padding:10px 12px; text-align:center; color:#0284c7; font-size:1rem;" id="draftSummaryPieces">0 pezzi</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- DRAFT ITEMS SMARTPHONE CARDS LIST -->
+        <div id="draftPalletMobileList" class="transfer-mobile-items" style="margin-top:12px;">
+          <!-- dynamically populated -->
+        </div>
+      </div>
+
+      <!-- STEP 3: IDENTIFICATIVO BANCALE (BARCODE BANCALE) -->
+      <div style="background:#fff; border:2px solid #0284c7; border-radius:12px; padding:16px; margin-bottom:18px;">
+        <div style="font-weight:800; font-size:.92rem; color:#0c4a6e; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+          <span>3️⃣ Identificativo Univoco &amp; Barcode del Bancale</span>
+        </div>
+        <div class="mobile-stack-grid" style="display:grid; grid-template-columns: 1.5fr 1fr; gap:16px; align-items:center;">
+          <div>
+            <label style="display:block; font-size:.78rem; font-weight:750; color:#334155; margin-bottom:4px;">Codice Bancale (Letto con lettore o generato)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="newTransfPalletCode" style="flex:1; padding:10px 14px; border-radius:8px; border:1px solid #cbd5e1; font-family:monospace; font-size:1.1rem; font-weight:850; color:#0c4a6e; letter-spacing:.05em;" oninput="updatePalletBarcodePreview(this.value)">
+              <button type="button" class="btn secondary" onclick="openCameraForPalletCode()" style="white-space:nowrap; font-weight:700;">
+                📷 Scansiona
+              </button>
+              <button type="button" class="btn secondary" onclick="generateNewPalletId()" title="Genera nuovo codice univoco">
+                🔄
+              </button>
+            </div>
+            <div style="font-size:.78rem; color:var(--muted); margin-top:6px;">
+              💡 Questo codice identifica il bancale fisico. Sarà sufficiente inquadrarlo alla partenza dalla Sede 1 e all'arrivo nella Sede 2.
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <div id="palletBarcodeSvgPreview" class="barcode-svg-container" style="display:inline-block; min-width:220px; min-height:80px; box-shadow:0 2px 8px rgba(0,0,0,.06);">
+              <!-- dynamic SVG barcode -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:18px;">
+        <span>Note di Trasferimento / Disposizioni Particolari</span>
+        <textarea id="newTransfNotes" rows="2" placeholder="Es. Bancale imballato con film nero, conservare a temperatura controllata..."></textarea>
+      </div>
+
+      <div class="dialog-actions" style="flex-wrap:wrap; justify-content:space-between; gap:10px;">
+        <button type="button" class="btn secondary" onclick="$('newTransferModal').close()">Annulla</button>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn secondary" onclick="saveNewTransfer(false)" style="font-weight:700;">
+            💾 Salva Soltanto
+          </button>
+          <button type="button" class="btn primary" onclick="saveNewTransfer(true)" style="background:#0284c7; font-weight:800; padding:10px 22px;">
+            🖨️ Salva e Genera Documento A4 Bancale
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: SCANNER FOTOCAMERA SMARTPHONE / LETTORE LASER -->
+  <dialog id="scannerModal" style="width: min(520px, calc(100vw - 28px));">
+    <div style="padding: 20px;">
+      <div class="dialog-head" style="margin-bottom: 14px;">
+        <div>
+          <h2 id="scannerModalTitle" style="font-size:1.25rem; font-weight:800; color:var(--navy); margin:0;">📷 Scansione Barcode</h2>
+          <p id="scannerModalSubtitle" style="margin:4px 0 0; color:var(--muted); font-size:.84rem;">Inquadra il codice a barre con la fotocamera o usa il lettore laser</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="closeScannerModal()">✕</button>
+      </div>
+
+      <!-- CAMERA VIEWFINDER -->
+      <div class="scanner-viewfinder">
+        <video id="scannerVideo" playsinline autoplay muted class="scanner-video-element"></video>
+        <div class="scanner-target-reticle">
+          <div class="scanner-target-laser"></div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+        <span id="scannerStatusText" style="font-size:.78rem; font-weight:700; color:#0284c7;">⚡ Sensore attivo…</span>
+        <button type="button" class="btn secondary btn-sm" id="btnToggleCamera" onclick="toggleCameraFacing()" style="padding:4px 10px; font-size:.78rem;">
+          🔄 Inverti Fotocamera
+        </button>
+      </div>
+
+      <p id="scannerSupportNote" style="font-size:.8rem; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; margin:10px 0;"></p>
+
+      <!-- HARDWARE BARCODE GUN / MANUAL INPUT FALLBACK -->
+      <div style="margin-top: 14px; background:#f1f5f9; border-radius:10px; padding:12px;">
+        <label style="display:block; font-size:.78rem; font-weight:750; color:#334155; margin-bottom:4px;">
+          Oppure spara con lettore barcode o digita:
+        </label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="scannerManualInput" class="search-input" placeholder="Codice barcode letto…" style="background:#fff;">
+          <button type="button" class="btn primary" onclick="submitScannerManualInput()" style="padding:9px 16px; font-weight:750;">
+            OK
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; text-align:right;">
+        <button type="button" class="btn secondary" onclick="closeScannerModal()">Chiudi</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: PRELIEVO PARZIALE DA BANCALE -->
+  <dialog id="partialPickupModal" style="width: min(640px, calc(100vw - 28px));">
+    <div style="padding: 22px;">
+      <div class="dialog-head" style="margin-bottom: 16px;">
+        <div>
+          <h2 style="font-size:1.25rem; font-weight:800; color:var(--navy); margin:0;">📦 Registra Prelievo Parziale da Bancale</h2>
+          <p style="margin:4px 0 0; color:var(--muted); font-size:.85rem;">Scarica parzialmente prodotti o componenti dal bancale e aggiorna la packing list</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('partialPickupModal').close()">✕</button>
+      </div>
+
+      <input type="hidden" id="pickupPalletCodeHidden">
+
+      <!-- PALLET INFO BANNER -->
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-size:.75rem; text-transform:uppercase; color:var(--muted); font-weight:750;">Bancale Selezionato</div>
+          <div id="pickupPalletBadge" class="pallet-tag" style="margin-top:2px;">PAL-...</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:.75rem; text-transform:uppercase; color:var(--muted); font-weight:750;">Destinazione</div>
+          <div id="pickupPalletDestText" style="font-weight:750; color:#1e293b;">--</div>
+        </div>
+      </div>
+
+      <!-- ITEM SELECT -->
+      <div class="field" style="margin-bottom:14px;">
+        <span>Seleziona Articolo da Prelevare dal Bancale</span>
+        <select id="pickupItemSelect" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; font-weight:700;" onchange="onPickupItemSelectChange()">
+          <!-- populated dynamically -->
+        </select>
+      </div>
+
+      <!-- INVENTORY ON PALLET -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:12px; margin-bottom:16px; text-align:center;">
+        <div>
+          <small style="font-size:.72rem; text-transform:uppercase; color:#0369a1; font-weight:750; display:block;">Pezzi Iniziali</small>
+          <strong id="pickupStatInitialPcs" style="font-size:1.15rem; color:#0c4a6e;">0</strong>
+        </div>
+        <div>
+          <small style="font-size:.72rem; text-transform:uppercase; color:#0369a1; font-weight:750; display:block;">Già Prelevati</small>
+          <strong id="pickupStatAlreadyPicked" style="font-size:1.15rem; color:#7e22ce;">0</strong>
+        </div>
+        <div>
+          <small style="font-size:.72rem; text-transform:uppercase; color:#0369a1; font-weight:750; display:block;">Attualmente a Bordo</small>
+          <strong id="pickupStatCurrentRemaining" style="font-size:1.15rem; color:#047857;">0</strong>
+        </div>
+      </div>
+
+      <!-- QUANTITIES TO PICK -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div class="field">
+          <span>Scatole Intere da Prelevare</span>
+          <input type="number" id="pickupBoxesInput" min="0" value="0" oninput="calculatePickupFromBoxes()">
+        </div>
+        <div class="field">
+          <span>Oppure Pezzi Singoli da Prelevare</span>
+          <input type="number" id="pickupPiecesInput" min="1" value="1" oninput="calculatePickupFromPieces()">
+        </div>
+      </div>
+
+      <!-- RESULT PREVIEW -->
+      <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:.85rem; color:#991b1b; font-weight:750;">Nuova Giacenza a Bordo Bancale:</span>
+        <strong id="pickupNewRemainingPreview" style="font-size:1.1rem; color:#991b1b;">0 pz rimanenti</strong>
+      </div>
+
+      <div class="field" style="margin-bottom:12px;">
+        <span>Operatore che esegue il prelievo</span>
+        <input type="text" id="pickupOperatorInput" placeholder="Nome dell'operatore o magazziniere">
+      </div>
+
+      <div class="field" style="margin-bottom:18px;">
+        <span>Causale / Destinazione del prelievo</span>
+        <input type="text" id="pickupReasonInput" placeholder="Es. Rifornimento linea lavorazione Sovigliana, ordine urgente cliente...">
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" onclick="$('partialPickupModal').close()">Annulla</button>
+        <button type="button" class="btn primary" onclick="submitPartialPickup()" style="background:#0284c7; font-weight:750;">
+          💾 Registra Prelievo &amp; Aggiorna Lista
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: GENERATORE BARCODE VETTORIALE & EAN-13 -->
+  <dialog id="barcodeLabelModal" style="width: min(600px, calc(100vw - 28px));">
+    <div style="padding: 22px;">
+      <div class="dialog-head" style="margin-bottom: 16px;">
+        <div>
+          <h2 style="font-size:1.25rem; font-weight:800; color:var(--navy); margin:0;">🏷️ Generatore Barcode Vettoriale &amp; EAN-13</h2>
+          <p style="margin:4px 0 0; color:var(--muted); font-size:.85rem;">Stampa codici a barre nitidi ad alta risoluzione con codice di controllo per prodotti sprovvisti</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="$('barcodeLabelModal').close()">✕</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:12px; margin-bottom:12px;">
+        <div class="field">
+          <span>Codice da Codificare (EAN-13 o Alfanumerico)</span>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="barcodeGenInputCode" placeholder="Es. 8001610002451 o PAL-..." style="flex:1; font-family:monospace; font-weight:700;" oninput="renderBarcodeGeneratorPreview()">
+            <button type="button" class="btn secondary btn-sm" onclick="generateRandomEanToInput()" title="Genera nuovo EAN-13 casuale valido">
+              🎲 Random EAN
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Formato Barcode</span>
+          <select id="barcodeGenFormatSelect" onchange="renderBarcodeGeneratorPreview()">
+            <option value="AUTO">Automatico (EAN-13 / Code128)</option>
+            <option value="EAN13">EAN-13 Standard (13 cifre)</option>
+            <option value="CODE128">Code 128 (Testo libero)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:16px;">
+        <span>Descrizione / Intestazione Etichetta (Opzionale)</span>
+        <input type="text" id="barcodeGenLabelDesc" placeholder="Es. Pascal Milano — Crema Viso Idratante 50ml" oninput="renderBarcodeGeneratorPreview()">
+      </div>
+
+      <!-- PREVIEW BOX -->
+      <div style="text-align:center; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:20px; margin-bottom:18px;">
+        <div style="font-size:.76rem; text-transform:uppercase; color:var(--muted); font-weight:750; margin-bottom:10px;">Anteprima Vettoriale Nitida (SVG)</div>
+        <div id="barcodePreviewArea" style="display:inline-block; background:#fff; padding:12px 18px; border:1px solid #000; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,.06);">
+          <!-- Dynamic SVG -->
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" onclick="$('barcodeLabelModal').close()">Chiudi</button>
+        <button type="button" class="btn primary" onclick="printBarcodeLabelSheet()" style="background:#0284c7; font-weight:750;">
+          🖨️ Stampa Etichetta Barcode
+        </button>
       </div>
     </div>
   </dialog>
@@ -2389,20 +3637,23 @@
 
     function switchMainView(mode) {
       currentMainView = mode;
+      $('btnModeOrders').classList.toggle('active', mode === 'orders');
+      $('btnModeProduction').classList.toggle('active', mode === 'production');
+      $('btnModeTransfers').classList.toggle('active', mode === 'transfers');
+
+      $('sectionOrders').style.display = mode === 'orders' ? 'block' : 'none';
+      $('sectionProduction').style.display = mode === 'production' ? 'block' : 'none';
+      $('sectionTransfers').style.display = mode === 'transfers' ? 'block' : 'none';
+
       if (mode === 'production') {
-        $('btnModeOrders').classList.remove('active');
-        $('btnModeProduction').classList.add('active');
-        $('sectionOrders').style.display = 'none';
-        $('sectionProduction').style.display = 'block';
         window.location.hash = '#produzione';
         if (!allProduction.length) {
           loadProductionAnalysis();
         }
+      } else if (mode === 'transfers') {
+        window.location.hash = '#movimento-sede';
+        loadTransfers();
       } else {
-        $('btnModeProduction').classList.remove('active');
-        $('btnModeOrders').classList.add('active');
-        $('sectionProduction').style.display = 'none';
-        $('sectionOrders').style.display = 'block';
         window.location.hash = '#ordini';
       }
     }
@@ -2761,12 +4012,1372 @@
       }
     };
 
+    // =============================================================
+    // INTER-WAREHOUSE TRANSFERS & PALLET ENGINE (MOVIMENTO DI SEDE)
+    // =============================================================
+    let allTransfers = [];
+    let currentTransfFilter = 'all';
+    let draftPalletItems = [];
+
+    // -------------------------------------------------------------
+    // PURE JAVASCRIPT VECTOR BARCODE ENGINE (CODE128 & EAN-13 SVG)
+    // -------------------------------------------------------------
+    const CODE128_PATTERNS = [
+      "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+      "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+      "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+      "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+      "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+      "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+      "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+      "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+      "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+      "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+      "114131","311141","411131","211412","211214","211232","2331112"
+    ];
+
+    function generateCode128Svg(text, opts = {}) {
+      const clean = String(text || '').trim();
+      if (!clean) return '';
+      const height = opts.height || 52;
+      const barWidth = opts.barWidth || 2;
+      const showText = opts.showText !== false;
+      const fontSize = opts.fontSize || 12;
+
+      const codes = [104]; // Start Code B
+      let checksum = 104;
+      for (let i = 0; i < clean.length; i++) {
+        const ascii = clean.charCodeAt(i);
+        const code = ascii - 32;
+        if (code >= 0 && code <= 95) {
+          codes.push(code);
+          checksum += code * (i + 1);
+        }
+      }
+      codes.push(checksum % 103);
+      codes.push(106); // Stop Code
+
+      let modules = '';
+      for (const c of codes) {
+        const pattern = CODE128_PATTERNS[c];
+        if (!pattern) continue;
+        let isBar = true;
+        for (let j = 0; j < pattern.length; j++) {
+          const w = parseInt(pattern[j], 10);
+          modules += (isBar ? '1' : '0').repeat(w);
+          isBar = !isBar;
+        }
+      }
+
+      const totalModules = modules.length;
+      const quietZone = opts.quietZone || 10;
+      const totalWidth = (totalModules + quietZone * 2) * barWidth;
+      const totalHeight = height + (showText ? fontSize + 6 : 0);
+
+      let rects = '';
+      for (let m = 0; m < totalModules; m++) {
+        if (modules[m] === '1') {
+          const x = (m + quietZone) * barWidth;
+          rects += `<rect x="${x}" y="0" width="${barWidth}" height="${height}" fill="#000" />`;
+        }
+      }
+
+      const textElement = showText
+        ? `<text x="${totalWidth / 2}" y="${height + fontSize + 2}" font-family="monospace, monospace" font-size="${fontSize}" font-weight="800" text-anchor="middle" fill="#000">${escapeHtml(clean)}</text>`
+        : '';
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}" style="max-width:100%; height:auto; display:block; margin:0 auto;">${rects}${textElement}</svg>`;
+    }
+
+    function calculateEan13CheckDigit(d12) {
+      const clean12 = String(d12 || '').replace(/\D/g, '').slice(0, 12);
+      if (clean12.length < 12) return 0;
+      let sum = 0;
+      for (let i = 0; i < 12; i++) {
+        sum += parseInt(clean12[i], 10) * (i % 2 === 0 ? 1 : 3);
+      }
+      return (10 - (sum % 10)) % 10;
+    }
+
+    const EAN_L_A = ["0001101","0011001","0010011","0111101","0100011","0110001","0101111","0111011","0110111","0001011"];
+    const EAN_L_B = ["0100111","0110011","0011011","0100001","0011101","0111001","0000101","0010001","0001001","0010111"];
+    const EAN_R_C = ["1110010","1100110","1101100","1000010","1011100","1001110","1010000","1000100","1001000","1110100"];
+    const EAN_PARITY = [
+      "AAAAAA", "AABABB", "AABBAB", "AABBBA", "ABAABB",
+      "ABBAAB", "ABBBAA", "ABABAB", "ABABBA", "ABBABA"
+    ];
+
+    function generateEan13Svg(digits, opts = {}) {
+      let raw = String(digits || '').replace(/\D/g, '');
+      if (raw.length === 12) {
+        raw += calculateEan13CheckDigit(raw);
+      }
+      if (raw.length !== 13) {
+        return generateCode128Svg(digits, opts);
+      }
+
+      const barHeight = opts.height || 52;
+      const guardHeight = barHeight + 6;
+      const barWidth = opts.barWidth || 2;
+      const fontSize = opts.fontSize || 12;
+      const firstDigit = parseInt(raw[0], 10);
+      const parityPattern = EAN_PARITY[firstDigit];
+
+      let bits = '101'; // Left guard
+      for (let i = 1; i <= 6; i++) {
+        const d = parseInt(raw[i], 10);
+        const p = parityPattern[i - 1];
+        bits += (p === 'A' ? EAN_L_A[d] : EAN_L_B[d]);
+      }
+      bits += '01010'; // Center guard
+      for (let i = 7; i <= 12; i++) {
+        const d = parseInt(raw[i], 10);
+        bits += EAN_R_C[d];
+      }
+      bits += '101'; // Right guard
+
+      const quietZoneLeft = 9;
+      const quietZoneRight = 7;
+      const totalModules = bits.length;
+      const totalWidth = (totalModules + quietZoneLeft + quietZoneRight) * barWidth;
+      const totalHeight = guardHeight + fontSize + 4;
+
+      let rects = '';
+      for (let m = 0; m < totalModules; m++) {
+        if (bits[m] === '1') {
+          const isGuard = (m < 3) || (m >= 45 && m < 50) || (m >= totalModules - 3);
+          const h = isGuard ? guardHeight : barHeight;
+          const x = (m + quietZoneLeft) * barWidth;
+          rects += `<rect x="${x}" y="0" width="${barWidth}" height="${h}" fill="#000" />`;
+        }
+      }
+
+      const leftGroupX = (quietZoneLeft + 3 + 21) * barWidth;
+      const rightGroupX = (quietZoneLeft + 50 + 21) * barWidth;
+      const textY = guardHeight + fontSize;
+
+      const textElement = `
+        <text x="${(quietZoneLeft - 4) * barWidth}" y="${barHeight + 2}" font-family="monospace, monospace" font-size="${fontSize}" font-weight="750" text-anchor="middle" fill="#000">${raw[0]}</text>
+        <text x="${leftGroupX}" y="${textY}" font-family="monospace, monospace" font-size="${fontSize}" font-weight="700" letter-spacing="1" text-anchor="middle" fill="#000">${raw.slice(1, 7)}</text>
+        <text x="${rightGroupX}" y="${textY}" font-family="monospace, monospace" font-size="${fontSize}" font-weight="700" letter-spacing="1" text-anchor="middle" fill="#000">${raw.slice(7, 13)}</text>
+      `;
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}" style="max-width:100%; height:auto; display:block; margin:0 auto;">${rects}${textElement}</svg>`;
+    }
+
+    function generateBarcodeSvg(code, format = 'AUTO', options = {}) {
+      const clean = String(code || '').trim();
+      if (!clean) return '<div style="color:var(--muted); font-size:.8rem;">Nessun codice</div>';
+
+      if (format === 'EAN13' || (format === 'AUTO' && /^\d{12,13}$/.test(clean))) {
+        return generateEan13Svg(clean, options);
+      }
+      return generateCode128Svg(clean, options);
+    }
+
+    function generateRandomEan13() {
+      // Italian GS1 country prefix 800 + 9 random digits + checksum
+      let d12 = '800' + Math.floor(100000000 + Math.random() * 900000000).toString();
+      return d12 + calculateEan13CheckDigit(d12);
+    }
+
+    // -------------------------------------------------------------
+    // AUDIO BEEP (WEB AUDIO API)
+    // -------------------------------------------------------------
+    function playScannerBeep() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1850, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } catch (e) {
+        console.warn('AudioContext not allowed or not supported yet:', e);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // CAMERA SCANNER & HARDWARE GUN READER
+    // -------------------------------------------------------------
+    let activeScannerStream = null;
+    let scannerLoopId = null;
+    let currentFacingMode = 'environment';
+    let activeScannerCallback = null;
+
+    async function startCameraScanner(callback, title = 'Scansione Barcode', subtitle = 'Inquadra il codice a barre con la fotocamera o usa il lettore laser') {
+      activeScannerCallback = callback;
+      $('scannerModalTitle').textContent = title;
+      $('scannerModalSubtitle').textContent = subtitle;
+      $('scannerManualInput').value = '';
+      $('scannerSupportNote').textContent = 'Inquadra il barcode nella finestra o premi Invio sul lettore barcode collegato.';
+
+      const modal = $('scannerModal');
+      if (!modal.open) modal.showModal();
+      setTimeout(() => $('scannerManualInput').focus(), 250);
+
+      try {
+        if (activeScannerStream) {
+          activeScannerStream.getTracks().forEach(t => t.stop());
+          activeScannerStream = null;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: currentFacingMode },
+            width: { ideal: 1280 }
+          }
+        });
+        activeScannerStream = stream;
+        const video = $('scannerVideo');
+        video.srcObject = stream;
+        await video.play();
+
+        if ('BarcodeDetector' in window) {
+          const detector = new window.BarcodeDetector({
+            formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'code_39', 'upc_a']
+          });
+
+          const scanLoop = async () => {
+            if (!activeScannerStream) return;
+            try {
+              if (video.readyState >= 2) {
+                const barcodes = await detector.detect(video);
+                if (barcodes && barcodes.length > 0) {
+                  const raw = barcodes[0].rawValue;
+                  if (raw && raw.trim()) {
+                    playScannerBeep();
+                    const detectedVal = raw.trim();
+                    closeScannerModal();
+                    if (activeScannerCallback) activeScannerCallback(detectedVal);
+                    return;
+                  }
+                }
+              }
+            } catch (err) {
+              // detection frame skip
+            }
+            scannerLoopId = requestAnimationFrame(scanLoop);
+          };
+          scannerLoopId = requestAnimationFrame(scanLoop);
+        } else {
+          $('scannerSupportNote').textContent = 'ℹ️ Fotocamera attiva. Se il browser non supporta la decodifica automatica nativa, digita o spara col lettore barcode nel campo sottostante.';
+        }
+      } catch (err) {
+        console.warn('Camera stream error:', err);
+        $('scannerSupportNote').textContent = '⚠️ Fotocamera non disponibile (' + err.message + '). Inserisci il codice a barre nel campo sottostante o usa la pistola laser.';
+      }
+    }
+
+    function closeScannerModal() {
+      if (scannerLoopId) {
+        cancelAnimationFrame(scannerLoopId);
+        scannerLoopId = null;
+      }
+      if (activeScannerStream) {
+        activeScannerStream.getTracks().forEach(t => t.stop());
+        activeScannerStream = null;
+      }
+      const modal = $('scannerModal');
+      if (modal && modal.open) modal.close();
+    }
+
+    function toggleCameraFacing() {
+      currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+      if (activeScannerCallback) {
+        startCameraScanner(activeScannerCallback, $('scannerModalTitle').textContent, $('scannerModalSubtitle').textContent);
+      }
+    }
+
+    function submitScannerManualInput() {
+      const val = $('scannerManualInput').value.trim();
+      if (!val) {
+        alert('Inserisci o spara un codice a barre valido.');
+        return;
+      }
+      playScannerBeep();
+      closeScannerModal();
+      if (activeScannerCallback) {
+        activeScannerCallback(val);
+      }
+    }
+
+    $('scannerManualInput').onkeydown = e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitScannerManualInput();
+      }
+    };
+
+    // -------------------------------------------------------------
+    // DRAFT PALLET CREATION & ITEMS WIZARD
+    // -------------------------------------------------------------
+    function openNewTransferModal() {
+      draftPalletItems = [];
+      generateNewPalletId();
+      
+      // Pre-fill logged-in user or operator
+      const loggedUser = window.currentUser || window.authSession?.user;
+      $('newTransfOperator').value = loggedUser?.name || loggedUser?.username || '';
+      $('newTransfCarrier').value = 'Mezzo Aziendale (Iveco Daily)';
+      $('newTransfNotes').value = '';
+
+      // Populate catalog dropdown
+      const catSelect = $('newTransfItemCatalogSelect');
+      catSelect.innerHTML = '<option value="">-- Scegli dal catalogo prodotti/componenti --</option>';
+      if (window.catalogProductsList && window.catalogProductsList.length > 0) {
+        for (const p of window.catalogProductsList) {
+          const label = `${p.code} — ${p.description || p.name || ''}`;
+          const opt = document.createElement('option');
+          opt.value = p.code;
+          opt.textContent = label;
+          opt.dataset.barcode = p.barcode || p.ean || '';
+          opt.dataset.desc = p.description || p.name || '';
+          opt.dataset.pcs = p.piecesPerBox || p.boxSize || 24;
+          catSelect.appendChild(opt);
+        }
+      }
+
+      // Reset draft item inputs
+      $('newTransfItemBarcode').value = '';
+      $('newTransfItemCode').value = '';
+      $('newTransfItemDesc').value = '';
+      $('newTransfItemBoxes').value = '5';
+      $('newTransfItemPcsPerBox').value = '24';
+      $('newTransfItemLot').value = '';
+      updateDraftPcsCalc();
+      renderDraftPalletItems();
+
+      $('newTransferModal').showModal();
+    }
+
+    function generateNewPalletId() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      const seq = String(allTransfers.length + 1).padStart(3, '0');
+      const palletCode = `PAL-${y}${m}${d}-${seq}`;
+      $('newTransfPalletCode').value = palletCode;
+      updatePalletBarcodePreview(palletCode);
+    }
+
+    function updatePalletBarcodePreview(code) {
+      const clean = String(code || '').trim() || 'PAL-000';
+      $('palletBarcodeSvgPreview').innerHTML = generateBarcodeSvg(clean, 'CODE128', { height: 48, barWidth: 1.8, fontSize: 11 });
+    }
+
+    function onDraftCatalogSelect(selectElem) {
+      const code = selectElem.value;
+      if (!code) return;
+      const opt = selectElem.selectedOptions[0];
+      $('newTransfItemCode').value = code;
+      $('newTransfItemDesc').value = opt.dataset.desc || '';
+      if (opt.dataset.barcode) {
+        $('newTransfItemBarcode').value = opt.dataset.barcode;
+      } else {
+        // If missing barcode, generate EAN-13
+        $('newTransfItemBarcode').value = generateRandomEan13();
+      }
+      if (opt.dataset.pcs) {
+        $('newTransfItemPcsPerBox').value = opt.dataset.pcs;
+      }
+      updateDraftPcsCalc();
+    }
+
+    function lookupBarcodeInCatalog(barcode) {
+      const clean = String(barcode || '').trim();
+      if (!clean) return;
+
+      if (window.catalogProductsList && window.catalogProductsList.length > 0) {
+        const found = window.catalogProductsList.find(p =>
+          (p.barcode && String(p.barcode).trim() === clean) ||
+          (p.code && String(p.code).trim().toLowerCase() === clean.toLowerCase())
+        );
+        if (found) {
+          $('newTransfItemCode').value = found.code || '';
+          $('newTransfItemDesc').value = found.description || found.name || '';
+          $('newTransfItemBarcode').value = found.barcode || clean;
+          if (found.piecesPerBox || found.boxSize) {
+            $('newTransfItemPcsPerBox').value = found.piecesPerBox || found.boxSize;
+          }
+          updateDraftPcsCalc();
+          toast(`Trovato in catalogo: ${found.code} — ${found.description || found.name}`);
+          return;
+        }
+      }
+
+      // If not in catalog, keep barcode and prompt for name
+      toast(`Barcode acquisito: ${clean}`);
+    }
+
+    function openCameraForDraftItem() {
+      startCameraScanner(scannedCode => {
+        $('newTransfItemBarcode').value = scannedCode;
+        lookupBarcodeInCatalog(scannedCode);
+      }, '📷 Scansiona Barcode Prodotto / Componente', 'Inquadra il codice a barre dell\'articolo da caricare sul bancale');
+    }
+
+    function openCameraForPalletCode() {
+      startCameraScanner(scannedCode => {
+        $('newTransfPalletCode').value = scannedCode;
+        updatePalletBarcodePreview(scannedCode);
+        toast(`Barcode Bancale acquisito: ${scannedCode}`);
+      }, '📷 Scansiona Barcode del Bancale Fisico', 'Inquadra l\'etichetta applicata sul bancale di legno');
+    }
+
+    function generateRandomEanForDraft() {
+      const newEan = generateRandomEan13();
+      $('newTransfItemBarcode').value = newEan;
+      toast(`Generato nuovo codice EAN-13 valido: ${newEan}`);
+    }
+
+    function updateDraftPcsCalc() {
+      const boxes = Math.max(1, parseInt($('newTransfItemBoxes').value, 10) || 1);
+      const pcsPerBox = Math.max(1, parseInt($('newTransfItemPcsPerBox').value, 10) || 1);
+      const totalPcs = boxes * pcsPerBox;
+      $('newTransfItemTotalPcs').value = `${totalPcs.toLocaleString('it-IT')} pz (${boxes} sc × ${pcsPerBox} pz)`;
+    }
+
+    function addItemToDraftPallet() {
+      const code = $('newTransfItemCode').value.trim();
+      const desc = $('newTransfItemDesc').value.trim();
+      const barcode = $('newTransfItemBarcode').value.trim() || generateRandomEan13();
+      const boxes = Math.max(1, parseInt($('newTransfItemBoxes').value, 10) || 1);
+      const pcsPerBox = Math.max(1, parseInt($('newTransfItemPcsPerBox').value, 10) || 1);
+      const lot = $('newTransfItemLot').value.trim();
+      const totalPieces = boxes * pcsPerBox;
+
+      if (!code && !desc) {
+        alert('Inserisci almeno il codice articolo o la descrizione del prodotto/componente.');
+        return;
+      }
+
+      draftPalletItems.push({
+        code: code || 'ART-' + (draftPalletItems.length + 1),
+        description: desc || 'Articolo a magazzino',
+        barcode,
+        boxes,
+        piecesPerBox,
+        totalPieces,
+        pickedPieces: 0,
+        remainingPieces: totalPieces,
+        lotNumber: lot || ''
+      });
+
+      // Clear for next item
+      $('newTransfItemCode').value = '';
+      $('newTransfItemDesc').value = '';
+      $('newTransfItemBarcode').value = '';
+      $('newTransfItemCatalogSelect').value = '';
+      $('newTransfItemLot').value = '';
+      $('newTransfItemBoxes').value = '5';
+      updateDraftPcsCalc();
+      renderDraftPalletItems();
+      toast('Articolo aggiunto al carico bancale!');
+    }
+
+    function removeDraftItem(idx) {
+      draftPalletItems.splice(idx, 1);
+      renderDraftPalletItems();
+    }
+
+    function renderDraftPalletItems() {
+      const tbody = $('draftPalletItemsBody');
+      const mlist = $('draftPalletMobileList');
+
+      if (!draftPalletItems.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; padding:24px; color:var(--muted);">
+              Nessun articolo ancora inserito su questo bancale. Scansiona o seleziona un prodotto sopra.
+            </td>
+          </tr>
+        `;
+        if (mlist) {
+          mlist.innerHTML = `
+            <div style="text-align:center; padding:16px; color:var(--muted); font-size:.82rem;">
+              Nessun articolo inserito. Scansiona il barcode o seleziona dal catalogo sopra.
+            </div>
+          `;
+        }
+        $('draftSummaryBoxes').textContent = '0 scatole';
+        $('draftSummaryPieces').textContent = '0 pezzi';
+        return;
+      }
+
+      let totalBoxes = 0;
+      let totalPieces = 0;
+
+      tbody.innerHTML = draftPalletItems.map((it, idx) => {
+        totalBoxes += it.boxes;
+        totalPieces += it.totalPieces;
+        return `
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 12px; font-family:monospace; font-weight:700; color:#0c4a6e;">
+              ${escapeHtml(it.barcode)}
+            </td>
+            <td style="padding:8px 12px;">
+              <strong>${escapeHtml(it.code)}</strong> — ${escapeHtml(it.description)}
+            </td>
+            <td style="padding:8px 12px; text-align:center; font-weight:750;">
+              ${it.boxes}
+            </td>
+            <td style="padding:8px 12px; text-align:center; color:#475569;">
+              ${it.piecesPerBox}
+            </td>
+            <td style="padding:8px 12px; text-align:center; font-weight:800; color:#0284c7;">
+              ${it.totalPieces.toLocaleString('it-IT')}
+            </td>
+            <td style="padding:8px 12px; font-size:.8rem; color:#64748b;">
+              ${escapeHtml(it.lotNumber || '—')}
+            </td>
+            <td style="padding:8px 12px; text-align:center;">
+              <button type="button" class="btn secondary btn-sm" onclick="removeDraftItem(${idx})" style="color:#dc2626; padding:2px 8px;">✕</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (mlist) {
+        mlist.innerHTML = draftPalletItems.map((it, idx) => `
+          <div class="mobile-item-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+              <div class="mobile-item-header">
+                <strong>${escapeHtml(it.code)}</strong> — ${escapeHtml(it.description)}
+              </div>
+              <button type="button" class="btn secondary btn-sm" onclick="removeDraftItem(${idx})" style="color:#dc2626; padding:3px 8px; font-weight:700;">✕</button>
+            </div>
+            <div class="mobile-item-meta">
+              <span class="mobile-chip-barcode">🏷️ ${escapeHtml(it.barcode)}</span>
+              <span class="mobile-chip-boxes">📦 ${it.boxes} sc × ${it.piecesPerBox} pz</span>
+              <span class="mobile-chip-qty full">${it.totalPieces.toLocaleString('it-IT')} pz</span>
+            </div>
+            ${it.lotNumber ? `<div style="font-size:.72rem; color:#64748b; margin-top:4px;">Lotto: ${escapeHtml(it.lotNumber)}</div>` : ''}
+          </div>
+        `).join('');
+      }
+
+      $('draftSummaryBoxes').textContent = `${totalBoxes} scatole`;
+      $('draftSummaryPieces').textContent = `${totalPieces.toLocaleString('it-IT')} pezzi`;
+    }
+
+    async function saveNewTransfer(shouldPrint = false) {
+      if (!draftPalletItems.length) {
+        alert('Aggiungi almeno un articolo o componente al bancale prima di salvare.');
+        return;
+      }
+
+      const palletCode = $('newTransfPalletCode').value.trim();
+      if (!palletCode) {
+        alert('Codice identificativo del bancale obbligatorio.');
+        return;
+      }
+
+      const totalBoxes = draftPalletItems.reduce((acc, it) => acc + (it.boxes || 0), 0);
+      const totalPieces = draftPalletItems.reduce((acc, it) => acc + (it.totalPieces || 0), 0);
+
+      const transferData = {
+        id: `MOV-${Date.now().toString().slice(-8)}`,
+        palletCode,
+        palletBarcode: palletCode,
+        originSede: $('newTransfOriginSede').value,
+        destinationSede: $('newTransfDestSede').value,
+        carrier: $('newTransfCarrier').value.trim() || 'Mezzo Aziendale',
+        palletType: $('newTransfPalletType').value,
+        operatorDeparture: $('newTransfOperator').value.trim() || 'Operatore',
+        notes: $('newTransfNotes').value.trim(),
+        status: 'allestito',
+        totalBoxes,
+        totalPieces,
+        items: draftPalletItems
+      };
+
+      try {
+        const res = await fetch('/api/warehouse/transfers', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(transferData)
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'Errore salvataggio movimento bancale');
+
+        $('newTransferModal').close();
+        toast(`Bancale ${palletCode} salvato con successo!`);
+        await loadTransfers();
+
+        if (shouldPrint) {
+          printTransferDocument(transferData.palletCode);
+        }
+      } catch (err) {
+        console.error('Error saving transfer:', err);
+        alert('Errore registrazione movimento di sede: ' + err.message);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // TRANSFERS DATA LOADING & RENDERING
+    // -------------------------------------------------------------
+    async function loadTransfers() {
+      try {
+        $('transfersContainer').innerHTML = `
+          <div style="text-align:center; padding: 40px; color: var(--muted);">
+            🔄 Connessione e recupero movimenti logistici bancali…
+          </div>
+        `;
+        const res = await fetch('/api/warehouse/transfers');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allTransfers = data.transfers || [];
+        updateTransferKpis();
+        renderTransfers();
+      } catch (err) {
+        console.error('Error loading transfers:', err);
+        $('transfersContainer').innerHTML = `
+          <div style="text-align:center; padding: 40px; color: #c5221f;">
+            Errore caricamento movimenti di sede: ${err.message}. Riprova tra poco.
+          </div>
+        `;
+      }
+    }
+
+    function updateTransferKpis() {
+      let allestitoCount = 0;
+      let inTransitoCount = 0;
+      let ricevutoCount = 0;
+      let parzialeCount = 0;
+      let totalPieces = 0;
+      let totalBoxes = 0;
+
+      for (const t of allTransfers) {
+        const st = (t.status || 'allestito').toLowerCase();
+        if (st === 'allestito') allestitoCount++;
+        else if (st === 'in_transito') inTransitoCount++;
+        else if (st === 'ricevuto') ricevutoCount++;
+
+        const hasPickups = (t.pickupHistory && t.pickupHistory.length > 0) || (t.items && t.items.some(it => (it.pickedPieces || 0) > 0));
+        if (hasPickups) parzialeCount++;
+
+        totalPieces += Number(t.totalPieces) || 0;
+        totalBoxes += Number(t.totalBoxes) || 0;
+      }
+
+      $('transfStatAllestito').textContent = allestitoCount;
+      $('transfStatInTransito').textContent = inTransitoCount;
+      $('transfStatRicevuto').textContent = ricevutoCount;
+      $('transfStatParziale').textContent = parzialeCount;
+      $('transfStatPiecesTot').textContent = totalPieces.toLocaleString('it-IT');
+      $('transfStatBoxesTot').textContent = `${totalBoxes} colli totali`;
+
+      // Tabs
+      $('transfTabCountAll').textContent = allTransfers.length;
+      $('transfTabCountAllestito').textContent = allestitoCount;
+      $('transfTabCountInTransito').textContent = inTransitoCount;
+      $('transfTabCountRicevuto').textContent = ricevutoCount;
+      $('transfTabCountParziale').textContent = parzialeCount;
+    }
+
+    function setTransferFilter(filter) {
+      currentTransfFilter = filter;
+      document.querySelectorAll('.transf-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+      });
+      renderTransfers();
+    }
+
+    function renderTransfers() {
+      const term = ($('transferSearchInput')?.value || '').trim().toLowerCase();
+
+      const filtered = allTransfers.filter(t => {
+        const st = (t.status || 'allestito').toLowerCase();
+        const hasPickups = (t.pickupHistory && t.pickupHistory.length > 0) || (t.items && t.items.some(it => (it.pickedPieces || 0) > 0));
+
+        if (currentTransfFilter === 'allestito' && st !== 'allestito') return false;
+        if (currentTransfFilter === 'in_transito' && st !== 'in_transito') return false;
+        if (currentTransfFilter === 'ricevuto' && st !== 'ricevuto') return false;
+        if (currentTransfFilter === 'parziale' && !hasPickups) return false;
+
+        if (term) {
+          const itemsStr = (t.items || []).map(i => `${i.code} ${i.description} ${i.barcode || ''}`).join(' ');
+          const hay = `${t.id} ${t.palletCode} ${t.palletBarcode || ''} ${t.originSede} ${t.destinationSede} ${t.carrier || ''} ${t.operatorDeparture || ''} ${itemsStr}`.toLowerCase();
+          if (!hay.includes(term)) return false;
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        $('transfersContainer').innerHTML = `
+          <div style="text-align:center; padding: 48px 20px; background:#fff; border:1px solid var(--line); border-radius:14px;">
+            <div style="font-size:2rem; margin-bottom:8px;">🚚</div>
+            <strong style="font-size:1.05rem; color:#1e293b; display:block;">Nessun movimento bancale trovato</strong>
+            <p style="color:var(--muted); font-size:.88rem; margin:6px 0 16px;">Non ci sono movimentazioni corrispondenti ai filtri attivi.</p>
+            <button type="button" class="btn primary" onclick="openNewTransferModal()" style="background:#0284c7; font-weight:750;">
+              ➕ Allestisci Nuovo Bancale
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      $('transfersContainer').innerHTML = filtered.map(t => {
+        const st = (t.status || 'allestito').toLowerCase();
+        let statusBadge = '';
+        if (st === 'allestito') {
+          statusBadge = '<span class="status-badge status-allestito">📋 In Allestimento (Sede 1)</span>';
+        } else if (st === 'in_transito') {
+          statusBadge = '<span class="status-badge status-in_transito">🚚 In Transito</span>';
+        } else if (st === 'ricevuto') {
+          statusBadge = '<span class="status-badge status-ricevuto">🏢 Ricevuto a Deposito (Sede 2)</span>';
+        }
+
+        const items = t.items || [];
+        const totalPcs = Number(t.totalPieces) || items.reduce((acc, i) => acc + (Number(i.totalPieces) || 0), 0);
+        const totalBoxes = Number(t.totalBoxes) || items.reduce((acc, i) => acc + (Number(i.boxes) || 0), 0);
+        const totalPicked = items.reduce((acc, i) => acc + (Number(i.pickedPieces) || 0), 0);
+        const remainingPcs = totalPcs - totalPicked;
+
+        const partialTag = totalPicked > 0
+          ? `<span class="item-pill" style="background:#f3e8ff; border-color:#d8b4fe; color:#6b21a8; font-weight:750;">⚠️ Scarico Parziale: -${totalPicked} pz (${remainingPcs} pz rimasti)</span>`
+          : '';
+
+        // Barcode snippet
+        const barcodeSvg = generateBarcodeSvg(t.palletBarcode || t.palletCode, 'CODE128', { height: 36, barWidth: 1.4, fontSize: 10 });
+
+        return `
+          <div class="transfer-card">
+            <div class="transfer-card-header">
+              <div>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <span class="pallet-tag">📦 ${escapeHtml(t.palletCode)}</span>
+                  ${statusBadge}
+                  ${partialTag}
+                </div>
+                <div style="font-size:.82rem; color:var(--muted); margin-top:4px;">
+                  Doc: <strong>${escapeHtml(t.id)}</strong> · Allestito il ${formatDdtDate(t.createdAt || t.departureDate)}
+                  ${t.carrier ? `· Vettore: <strong>${escapeHtml(t.carrier)}</strong>` : ''}
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div class="barcode-svg-container" style="padding:4px 8px; background:#fafafa;">
+                  ${barcodeSvg}
+                </div>
+              </div>
+            </div>
+
+            <!-- ROUTE VISUAL -->
+            <div class="route-display">
+              <div class="route-hub">
+                <small>Partenza</small>
+                <strong>${escapeHtml(t.originSede || 'Sede 1')}</strong>
+                ${t.departureDate ? `<span style="font-size:.74rem; color:#0369a1;">Partito: ${new Date(t.departureDate).toLocaleString('it-IT', { dateStyle:'short', timeStyle:'short' })}</span>` : ''}
+              </div>
+              <div class="route-arrow">➔</div>
+              <div class="route-hub">
+                <small>Destinazione</small>
+                <strong>${escapeHtml(t.destinationSede || 'Sede 2')}</strong>
+                ${t.arrivalDate ? `<span style="font-size:.74rem; color:#15803d;">Ricevuto: ${new Date(t.arrivalDate).toLocaleString('it-IT', { dateStyle:'short', timeStyle:'short' })}</span>` : ''}
+              </div>
+            </div>
+
+            <!-- ITEMS SUMMARY FOR DESKTOP (TABLE) -->
+            <div class="transfer-desktop-table" style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+              <table style="width:100%; border-collapse:collapse; font-size:.84rem;">
+                <thead>
+                  <tr style="background:#f8fafc; font-size:.74rem; text-transform:uppercase; color:#475569; border-bottom:1px solid #e2e8f0;">
+                    <th style="padding:6px 10px; text-align:left;">Barcode Articolo</th>
+                    <th style="padding:6px 10px; text-align:left;">Articolo / Componente</th>
+                    <th style="padding:6px 10px; text-align:center;">Scatole</th>
+                    <th style="padding:6px 10px; text-align:center;">Pezzi Iniziali</th>
+                    <th style="padding:6px 10px; text-align:center;">Pezzi Rimasti</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.map(it => {
+                    const itPicked = Number(it.pickedPieces) || 0;
+                    const itRem = it.remainingPieces !== undefined ? it.remainingPieces : (it.totalPieces - itPicked);
+                    return `
+                      <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:6px 10px; font-family:monospace; font-weight:700; color:#0c4a6e;">${escapeHtml(it.barcode || '—')}</td>
+                        <td style="padding:6px 10px;"><strong>${escapeHtml(it.code)}</strong> — ${escapeHtml(it.description)}</td>
+                        <td style="padding:6px 10px; text-align:center;">${it.boxes}</td>
+                        <td style="padding:6px 10px; text-align:center; font-weight:700;">${it.totalPieces} pz</td>
+                        <td style="padding:6px 10px; text-align:center; font-weight:800; color:${itRem <= 0 ? '#991b1b' : (itPicked > 0 ? '#7e22ce' : '#047857')};">
+                          ${itRem} pz
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- ITEMS SUMMARY FOR MOBILE (TOUCH-FRIENDLY CARDS) -->
+            <div class="transfer-mobile-items">
+              ${items.map(it => {
+                const itPicked = Number(it.pickedPieces) || 0;
+                const itRem = it.remainingPieces !== undefined ? it.remainingPieces : (it.totalPieces - itPicked);
+                const qtyClass = itRem <= 0 ? 'depleted' : (itPicked > 0 ? 'partial' : 'full');
+                return `
+                  <div class="mobile-item-card">
+                    <div class="mobile-item-header"><strong>${escapeHtml(it.code)}</strong> · ${escapeHtml(it.description)}</div>
+                    <div class="mobile-item-meta">
+                      ${it.barcode ? `<span class="mobile-chip-barcode">🏷️ ${escapeHtml(it.barcode)}</span>` : ''}
+                      <span class="mobile-chip-boxes">📦 ${it.boxes} scatole</span>
+                      <span class="mobile-chip-qty ${qtyClass}">${itRem} pz ${itPicked > 0 ? `(di ${it.totalPieces})` : ''}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- ACTIONS ROW -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-top:1px solid #f1f5f9; padding-top:12px;">
+              <div style="font-size:.9rem; font-weight:750; color:#1e293b;">
+                Carico: <span style="color:#0284c7;">${totalBoxes} colli</span> · <span style="color:#0284c7;">${remainingPcs} / ${totalPcs} pezzi</span>
+              </div>
+              <div class="transfer-card-actions">
+                <button type="button" class="btn secondary btn-sm" onclick="printTransferDocument('${escapeHtml(t.palletCode)}')">
+                  🖨️ Stampa A4
+                </button>
+                <button type="button" class="btn secondary btn-sm" onclick="openBarcodeLabelGenerator('${escapeHtml(t.palletCode)}', 'BANCALE: ${escapeHtml(t.palletCode)} [${escapeHtml(t.originSede)} -> ${escapeHtml(t.destinationSede)}]')">
+                  🏷️ Etichetta
+                </button>
+                <button type="button" class="btn secondary btn-sm" onclick="openPartialPickupModal('${escapeHtml(t.palletCode)}')">
+                  📦 Prelievo
+                </button>
+                ${st === 'allestito' ? `
+                  <button type="button" class="btn primary btn-primary btn-sm" onclick="quickUpdateTransferStatus('${escapeHtml(t.palletCode)}', 'in_transito')" style="background:#0284c7; font-weight:750;">
+                    🚚 Segna Partenza
+                  </button>
+                ` : ''}
+                ${st === 'in_transito' ? `
+                  <button type="button" class="btn primary btn-primary btn-sm" onclick="quickUpdateTransferStatus('${escapeHtml(t.palletCode)}', 'ricevuto')" style="background:#059669; font-weight:750;">
+                    🏢 Segna Arrivo
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // -------------------------------------------------------------
+    // QUICK TRANSIT STATUS UPDATER & TRANSIT SCANNER
+    // -------------------------------------------------------------
+    async function quickUpdateTransferStatus(palletCode, newStatus) {
+      const actionName = newStatus === 'in_transito' ? 'Partenza da Sede 1' : 'Ricezione e Arrivo in Sede 2';
+      if (!confirm(`Confermi la registrazione di "${actionName}" per il bancale ${palletCode}?`)) {
+        return;
+      }
+
+      try {
+        const loggedUser = window.currentUser || window.authSession?.user;
+        const res = await fetch('/api/warehouse/transfers/update-status', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            palletCode,
+            status: newStatus,
+            operator: loggedUser?.name || loggedUser?.username || 'Operatore Logistica'
+          })
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'Errore aggiornamento stato');
+
+        toast(`Bancale ${palletCode} registrato con successo come ${newStatus === 'in_transito' ? 'IN TRANSITO' : 'RICEVUTO'}!`);
+        await loadTransfers();
+      } catch (err) {
+        console.error('Error updating status:', err);
+        alert('Errore aggiornamento stato bancale: ' + err.message);
+      }
+    }
+
+    function openQuickTransitScanModal() {
+      const mode = prompt("COSA DESIDERI REGISTRARE CON LA SCANSIONE DEL BANCALE?\n\nDigita '1' per PARTENZA (Sede 1 -> In Transito)\nDigita '2' per ARRIVO (In Transito -> Sede 2 Ricevuto)", "1");
+      if (!mode) return;
+
+      const targetStatus = mode.trim() === '2' ? 'ricevuto' : 'in_transito';
+      const statusTitle = targetStatus === 'ricevuto' ? '🏢 Scansiona Bancale in Arrivo (Sede 2)' : '🚚 Scansiona Bancale in Partenza (Sede 1)';
+
+      startCameraScanner(async scannedCode => {
+        const cleanCode = String(scannedCode || '').trim();
+        toast(`Acquisito codice bancale: ${cleanCode}`);
+
+        const found = allTransfers.find(t => t.palletCode === cleanCode || t.palletBarcode === cleanCode || t.id === cleanCode);
+        if (!found) {
+          alert(`Nessun movimento trovato per il bancale "${cleanCode}". Verifica il codice scansionato.`);
+          return;
+        }
+
+        try {
+          const loggedUser = window.currentUser || window.authSession?.user;
+          const res = await fetch('/api/warehouse/transfers/update-status', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              palletCode: found.palletCode,
+              status: targetStatus,
+              operator: loggedUser?.name || loggedUser?.username || 'Operatore'
+            })
+          });
+          const d = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(d.error || 'Errore aggiornamento');
+
+          toast(`Bancale ${found.palletCode} contrassegnato come ${targetStatus === 'ricevuto' ? 'RICEVUTO' : 'IN TRANSITO'}!`);
+          await loadTransfers();
+        } catch (err) {
+          alert('Errore registrazione: ' + err.message);
+        }
+      }, statusTitle, `Inquadra il codice a barre del bancale per segnare immediatamente ${targetStatus === 'ricevuto' ? 'l\'entrata in magazzino' : 'la partenza'}`);
+    }
+
+    // -------------------------------------------------------------
+    // PARTIAL PICKUP MODAL
+    // -------------------------------------------------------------
+    let currentPickupTransfer = null;
+
+    function openPartialPickupModal(palletCode) {
+      const t = allTransfers.find(x => x.palletCode === palletCode || x.id === palletCode);
+      if (!t) {
+        alert('Bancale non trovato.');
+        return;
+      }
+      currentPickupTransfer = t;
+
+      $('pickupPalletCodeHidden').value = t.palletCode;
+      $('pickupPalletBadge').textContent = t.palletCode;
+      $('pickupPalletDestText').textContent = t.destinationSede;
+
+      const loggedUser = window.currentUser || window.authSession?.user;
+      $('pickupOperatorInput').value = loggedUser?.name || loggedUser?.username || '';
+      $('pickupReasonInput').value = '';
+
+      // Populate item select
+      const select = $('pickupItemSelect');
+      select.innerHTML = '';
+      (t.items || []).forEach((it, idx) => {
+        const itPicked = Number(it.pickedPieces) || 0;
+        const itRem = it.remainingPieces !== undefined ? it.remainingPieces : (it.totalPieces - itPicked);
+        const opt = document.createElement('option');
+        opt.value = it.code;
+        opt.textContent = `${it.code} — ${it.description} (Rimasti: ${itRem} pz / Iniziali: ${it.totalPieces} pz)`;
+        opt.dataset.index = idx;
+        opt.dataset.initial = it.totalPieces;
+        opt.dataset.picked = itPicked;
+        opt.dataset.remaining = itRem;
+        opt.dataset.pcsperbox = it.piecesPerBox || 24;
+        select.appendChild(opt);
+      });
+
+      onPickupItemSelectChange();
+      $('partialPickupModal').showModal();
+    }
+
+    function onPickupItemSelectChange() {
+      const select = $('pickupItemSelect');
+      const opt = select.selectedOptions[0];
+      if (!opt) return;
+
+      const initial = parseInt(opt.dataset.initial, 10) || 0;
+      const alreadyPicked = parseInt(opt.dataset.picked, 10) || 0;
+      const remaining = parseInt(opt.dataset.remaining, 10) || 0;
+
+      $('pickupStatInitialPcs').textContent = initial;
+      $('pickupStatAlreadyPicked').textContent = alreadyPicked;
+      $('pickupStatCurrentRemaining').textContent = `${remaining} pz`;
+
+      $('pickupBoxesInput').value = '0';
+      $('pickupPiecesInput').value = Math.min(remaining, 1);
+      calculatePickupFromPieces();
+    }
+
+    function calculatePickupFromBoxes() {
+      const opt = $('pickupItemSelect').selectedOptions[0];
+      if (!opt) return;
+      const pcsPerBox = parseInt(opt.dataset.pcsperbox, 10) || 24;
+      const boxes = Math.max(0, parseInt($('pickupBoxesInput').value, 10) || 0);
+      $('pickupPiecesInput').value = boxes * pcsPerBox;
+      calculatePickupFromPieces();
+    }
+
+    function calculatePickupFromPieces() {
+      const opt = $('pickupItemSelect').selectedOptions[0];
+      if (!opt) return;
+      const remaining = parseInt(opt.dataset.remaining, 10) || 0;
+      const toPick = Math.max(0, parseInt($('pickupPiecesInput').value, 10) || 0);
+
+      const newRemaining = Math.max(0, remaining - toPick);
+      $('pickupTotalPcsPreview').textContent = `${toPick} pz`;
+      $('pickupNewRemainingPreview').textContent = `${newRemaining} pz rimanenti`;
+    }
+
+    async function submitPartialPickup() {
+      const palletCode = $('pickupPalletCodeHidden').value;
+      const opt = $('pickupItemSelect').selectedOptions[0];
+      if (!opt) return;
+
+      const toPick = parseInt($('pickupPiecesInput').value, 10) || 0;
+      const remaining = parseInt(opt.dataset.remaining, 10) || 0;
+
+      if (toPick <= 0) {
+        alert('Indica una quantità di pezzi da prelevare maggiore di zero.');
+        return;
+      }
+      if (toPick > remaining) {
+        alert(`Non puoi prelevare ${toPick} pz: sul bancale sono rimasti solo ${remaining} pezzi.`);
+        return;
+      }
+
+      const operator = $('pickupOperatorInput').value.trim() || 'Operatore';
+      const reason = $('pickupReasonInput').value.trim() || 'Prelievo parziale magazzino';
+
+      try {
+        const res = await fetch('/api/warehouse/transfers/partial-pickup', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            palletCode,
+            articleCode: opt.value,
+            pieces: toPick,
+            operator,
+            reason
+          })
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'Errore registrazione prelievo');
+
+        $('partialPickupModal').close();
+        toast(`Prelievo di ${toPick} pz registrato sul bancale ${palletCode}!`);
+        await loadTransfers();
+
+        if (confirm('Prelievo registrato con successo!\n\nVuoi stampare la nuova Packing List aggiornata del bancale?')) {
+          printTransferDocument(palletCode);
+        }
+      } catch (err) {
+        console.error('Error recording pickup:', err);
+        alert('Errore prelievo parziale: ' + err.message);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // PRINT A4 MOVEMENT SHEET (PACKING LIST DEL BANCALE CON BARCODE)
+    // -------------------------------------------------------------
+    function printTransferDocument(transferIdOrCode) {
+      const t = allTransfers.find(x => x.palletCode === transferIdOrCode || x.id === transferIdOrCode);
+      if (!t) {
+        alert('Movimento bancale non trovato per la stampa.');
+        return;
+      }
+
+      const compName = companyProfile.displayName || companyProfile.companyName || 'Pascal Cosmesi International';
+      const compAddr = companyProfile.address || 'Via F.lli Bandiera 24';
+      const compCapCity = `${companyProfile.postalCode || '50100'} ${companyProfile.city || 'Sovigliana'} (${companyProfile.province || 'FI'})`;
+      const compTel = companyProfile.phone || '055/42.89.074';
+      const compVat = companyProfile.vatNumber || '1234567890';
+
+      const items = t.items || [];
+      const totalBoxes = Number(t.totalBoxes) || items.reduce((acc, i) => acc + (Number(i.boxes) || 0), 0);
+      const totalInitialPcs = Number(t.totalPieces) || items.reduce((acc, i) => acc + (Number(i.totalPieces) || 0), 0);
+      const totalPickedPcs = items.reduce((acc, i) => acc + (Number(i.pickedPieces) || 0), 0);
+      const totalRemainingPcs = totalInitialPcs - totalPickedPcs;
+
+      // Pallet BIG Vector Barcode SVG (laser grade)
+      const palletBarcodeSvg = generateBarcodeSvg(t.palletBarcode || t.palletCode, 'CODE128', {
+        height: 64,
+        barWidth: 2.2,
+        fontSize: 14,
+        showText: true
+      });
+
+      // Rows for content table
+      const rowsHtml = items.map((it, idx) => {
+        const itemBarcodeSvg = generateBarcodeSvg(it.barcode || it.code, 'AUTO', {
+          height: 28,
+          barWidth: 1.1,
+          fontSize: 8,
+          showText: true
+        });
+        const itPicked = Number(it.pickedPieces) || 0;
+        const itRem = it.remainingPieces !== undefined ? it.remainingPieces : (it.totalPieces - itPicked);
+
+        return `
+          <tr>
+            <td style="text-align:center; padding:3px;">
+              ${itemBarcodeSvg}
+            </td>
+            <td>
+              <strong style="font-size:10.5px;">${escapeHtml(it.code)}</strong><br>
+              <span style="font-size:9.5px;">${escapeHtml(it.description)}</span>
+              ${it.lotNumber ? `<br><small style="color:#555;">Lotto: <strong>${escapeHtml(it.lotNumber)}</strong></small>` : ''}
+            </td>
+            <td style="text-align:center; font-weight:750; font-size:11px;">${it.boxes}</td>
+            <td style="text-align:center; font-size:10px;">${it.piecesPerBox}</td>
+            <td style="text-align:center; font-weight:700; font-size:11px;">${it.totalPieces}</td>
+            <td style="text-align:center; font-weight:800; font-size:11px; background:#f8fafc; color:${itRem < it.totalPieces ? '#b91c1c' : '#000'};">
+              ${itRem}
+              ${itPicked > 0 ? `<br><span style="font-size:7.5px; color:#6b21a8;">(-${itPicked} pz)</span>` : ''}
+            </td>
+            <td style="text-align:center; font-size:14px; font-weight:bold;">[ &nbsp; ]</td>
+            <td style="text-align:center; font-size:14px; font-weight:bold;">[ &nbsp; ]</td>
+            <td style="font-size:8px; color:#444;">
+              ${it.notes ? escapeHtml(it.notes) : '________________'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Pickups log table if any
+      let pickupsLogHtml = '';
+      if (t.pickupHistory && t.pickupHistory.length > 0) {
+        pickupsLogHtml = `
+          <div style="margin-top:10px;">
+            <div style="font-size:8.5px; font-weight:800; text-transform:uppercase; margin-bottom:3px; color:#0f172a;">
+              📋 Registro Prelievi Parziali Eseguiti da questo Bancale
+            </div>
+            <table class="transfer-sheet-table" style="font-size:8px; margin-bottom:8px;">
+              <thead>
+                <tr>
+                  <th style="width:18%;">Data / Ora</th>
+                  <th style="width:20%;">Articolo</th>
+                  <th style="width:12%; text-align:center;">Pezzi Prelevati</th>
+                  <th style="width:18%;">Operatore</th>
+                  <th style="width:32%;">Causale / Destinazione</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${t.pickupHistory.map(p => `
+                  <tr>
+                    <td>${new Date(p.date).toLocaleString('it-IT', { dateStyle:'short', timeStyle:'short' })}</td>
+                    <td><strong>${escapeHtml(p.code)}</strong></td>
+                    <td style="text-align:center; font-weight:800; color:#b91c1c;">-${p.pieces} pz</td>
+                    <td>${escapeHtml(p.operator)}</td>
+                    <td>${escapeHtml(p.reason || '—')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      const docHtml = `
+        <div class="transfer-sheet">
+          <!-- HEADER SECTION -->
+          <div class="transfer-sheet-header">
+            <div>
+              <div style="font-size:18px; font-weight:900; letter-spacing:.08em; color:#0b2942; font-family:Inter, sans-serif;">
+                ${compName.toUpperCase()}
+              </div>
+              <div style="font-size:9px; font-weight:800; letter-spacing:.14em; color:#0284c7; text-transform:uppercase;">
+                Logistica Interna &amp; Gestione Movimentazione Bancali
+              </div>
+              <div style="font-size:8.5px; color:#333; margin-top:2px;">
+                ${compAddr} — ${compCapCity} · Tel. ${compTel} · P.IVA ${compVat}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12px; font-weight:800; color:#000;">DOC. MOVIMENTO N° ${escapeHtml(t.id)}</div>
+              <div style="font-size:9px; color:#444;">Emesso il: <strong>${new Date().toLocaleString('it-IT')}</strong></div>
+              <div style="font-size:9px; margin-top:2px;">
+                Stato: <strong>${(t.status || 'ALLESTITO').toUpperCase().replace('_', ' ')}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- DOCUMENT TITLE -->
+          <div style="font-size:13px; font-weight:900; text-transform:uppercase; letter-spacing:.02em; text-align:center; background:#0f172a; color:#fff; padding:4px 8px; margin-bottom:8px;">
+            DOCUMENTO DI MOVIMENTAZIONE INTERNA E PACKING LIST BANCALE
+          </div>
+
+          <!-- HERO PALLET IDENTIFIER WITH HUGE VECTOR BARCODE -->
+          <div class="transfer-sheet-hero">
+            <div>
+              <div style="font-size:8px; font-weight:800; text-transform:uppercase; color:#0284c7; letter-spacing:.08em;">
+                Identificativo Univoco Bancale / Pallet ID
+              </div>
+              <div style="font-size:22px; font-weight:900; font-family:monospace; color:#0f172a; margin:2px 0;">
+                ${escapeHtml(t.palletCode)}
+              </div>
+              <div style="font-size:9px; color:#333;">
+                Tipologia: <strong>${escapeHtml(t.palletType || 'Europallet Standard 80x120')}</strong> · Colli: <strong>${totalBoxes} scatole</strong> · Pezzi: <strong>${totalRemainingPcs} / ${totalInitialPcs} pz</strong>
+              </div>
+              ${t.notes ? `<div style="font-size:8.5px; color:#555; margin-top:4px; font-style:italic;">Note: ${escapeHtml(t.notes)}</div>` : ''}
+            </div>
+            <div style="text-align:center; background:#fff; padding:6px; border:1px solid #000; border-radius:3px;">
+              ${palletBarcodeSvg}
+            </div>
+          </div>
+
+          <!-- ROUTE & TRANSIT DATA TABLE -->
+          <table class="transfer-sheet-table" style="margin-bottom:10px;">
+            <tr>
+              <td style="width:48%;">
+                <div style="font-size:8px; font-weight:800; text-transform:uppercase; color:#0369a1;">Sede di Partenza (Origine)</div>
+                <div style="font-size:11px; font-weight:800; margin-top:1px;">${escapeHtml(t.originSede)}</div>
+                <div style="font-size:8.5px; color:#444; margin-top:2px;">
+                  Allestito da: <strong>${escapeHtml(t.operatorDeparture || 'Logistica')}</strong>
+                  ${t.departureDate ? ` · Partito: ${new Date(t.departureDate).toLocaleString('it-IT')}` : ''}
+                </div>
+              </td>
+              <td style="width:4%; text-align:center; font-size:16px; font-weight:bold; background:#f1f5f9;">➔</td>
+              <td style="width:48%;">
+                <div style="font-size:8px; font-weight:800; text-transform:uppercase; color:#15803d;">Sede di Destinazione (Arrivo)</div>
+                <div style="font-size:11px; font-weight:800; margin-top:1px;">${escapeHtml(t.destinationSede)}</div>
+                <div style="font-size:8.5px; color:#444; margin-top:2px;">
+                  Vettore / Mezzo: <strong>${escapeHtml(t.carrier || 'Mezzo Aziendale')}</strong>
+                  ${t.arrivalDate ? ` · Ricevuto il: ${new Date(t.arrivalDate).toLocaleString('it-IT')}` : ''}
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- ITEMS TABLE (PACKING LIST) -->
+          <div style="font-size:9px; font-weight:800; text-transform:uppercase; margin-bottom:3px; color:#0f172a;">
+            📦 Contenuto del Bancale &amp; Dettaglio Articoli
+          </div>
+          <table class="transfer-sheet-table">
+            <thead>
+              <tr>
+                <th style="width:20%; text-align:center;">Barcode Articolo</th>
+                <th style="width:34%;">Codice &amp; Descrizione</th>
+                <th style="width:7%; text-align:center;">Scatole</th>
+                <th style="width:7%; text-align:center;">Pz/Sc.</th>
+                <th style="width:8%; text-align:center;">Q.tà Iniz.</th>
+                <th style="width:8%; text-align:center;">Q.tà Rim.</th>
+                <th style="width:5%; text-align:center;" title="Spunta Carico Sede 1">Part.</th>
+                <th style="width:5%; text-align:center;" title="Spunta Ricezione Sede 2">Arr.</th>
+                <th style="width:6%; text-align:center;">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+            <tfoot style="background:#f1f5f9; font-weight:800;">
+              <tr>
+                <td colspan="2" style="text-align:right; padding:5px 8px;">TOTALI CARICO BANCALE:</td>
+                <td style="text-align:center; font-size:11px;">${totalBoxes}</td>
+                <td></td>
+                <td style="text-align:center; font-size:11px;">${totalInitialPcs}</td>
+                <td style="text-align:center; font-size:11px; color:#b91c1c;">${totalRemainingPcs}</td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+
+          ${pickupsLogHtml}
+
+          <!-- SIGNATURES BLOCK -->
+          <div class="transfer-sheet-sign">
+            <div class="transfer-sign-box">
+              <div class="transfer-sign-label">Firma Responsabile Carico (Sede 1)</div>
+              <div class="transfer-sign-line"></div>
+            </div>
+            <div class="transfer-sign-box">
+              <div class="transfer-sign-label">Firma Conducente / Vettore</div>
+              <div class="transfer-sign-line"></div>
+            </div>
+            <div class="transfer-sign-box">
+              <div class="transfer-sign-label">Firma Ricezione &amp; Scarico (Sede 2)</div>
+              <div class="transfer-sign-line"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:8px; font-size:7.5px; color:#666; text-align:center; border-top:1px solid #ccc; padding-top:4px;">
+            Documento ad uso interno logistico e movimentazione depositi. Conservare allegato al bancale durante il transito e l'accettazione a magazzino.
+          </div>
+        </div>
+      `;
+
+      $('printableArea').innerHTML = docHtml;
+      const modal = $('printModal');
+      if (modal.open) modal.close();
+      modal.showModal();
+    }
+
+    // -------------------------------------------------------------
+    // BARCODE LABEL GENERATOR & LABEL SHEET PRINTER
+    // -------------------------------------------------------------
+    function openBarcodeLabelGenerator(initialCode = '', initialDesc = '') {
+      $('barcodeGenInputCode').value = initialCode || generateRandomEan13();
+      $('barcodeGenLabelDesc').value = initialDesc || 'Pascal Milano — Prodotto Cosmetico';
+      renderBarcodeGeneratorPreview();
+      $('barcodeLabelModal').showModal();
+    }
+
+    function renderBarcodeGeneratorPreview() {
+      const code = $('barcodeGenInputCode').value.trim() || '8000000000000';
+      const format = $('barcodeGenFormatSelect').value;
+      const desc = $('barcodeGenLabelDesc').value.trim();
+
+      const svg = generateBarcodeSvg(code, format, { height: 50, barWidth: 2, fontSize: 12 });
+      $('barcodePreviewArea').innerHTML = `
+        <div style="font-size:10px; font-weight:800; color:#1e293b; margin-bottom:4px; text-transform:uppercase;">${escapeHtml(desc)}</div>
+        ${svg}
+      `;
+    }
+
+    function generateRandomEanToInput() {
+      const ean = generateRandomEan13();
+      $('barcodeGenInputCode').value = ean;
+      renderBarcodeGeneratorPreview();
+    }
+
+    function printBarcodeLabelSheet() {
+      const code = $('barcodeGenInputCode').value.trim() || '8000000000000';
+      const format = $('barcodeGenFormatSelect').value;
+      const desc = $('barcodeGenLabelDesc').value.trim();
+
+      const singleSvg = generateBarcodeSvg(code, format, { height: 42, barWidth: 1.6, fontSize: 10 });
+
+      // Generate a grid of 12 adhesive labels (2 columns x 6 rows)
+      let labelsHtml = '';
+      for (let i = 0; i < 12; i++) {
+        labelsHtml += `
+          <div style="border:1px dashed #cbd5e1; border-radius:6px; padding:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; height:38mm; box-sizing:border-box;">
+            <div style="font-size:8.5px; font-weight:800; margin-bottom:2px; text-transform:uppercase;">${escapeHtml(desc)}</div>
+            ${singleSvg}
+          </div>
+        `;
+      }
+
+      const sheetHtml = `
+        <div style="max-width:195mm; margin:0 auto; padding:0;">
+          <div class="no-print" style="margin-bottom:12px; font-weight:750; color:#0284c7;">
+            🖨️ Stampa Foglio Etichette Barcode Adesive (12 Etichette per foglio A4)
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6mm;">
+            ${labelsHtml}
+          </div>
+        </div>
+      `;
+
+      $('printableArea').innerHTML = sheetHtml;
+      $('barcodeLabelModal').close();
+      const modal = $('printModal');
+      if (modal.open) modal.close();
+      modal.showModal();
+    }
+
     // Initial page router based on hash
     if (window.location.hash === '#produzione') {
       switchMainView('production');
+    } else if (window.location.hash === '#movimento-sede' || window.location.hash === '#movimenti-sede' || window.location.hash === '#transfers') {
+      switchMainView('transfers');
     }
 
     loadOrders();
+    // Preload auxiliary catalog data and transfers in background
+    loadAuxiliaryData().then(() => {
+      // populate catalog products if transfers tab is opened first
+    });
   </script>
 </body>
 </html>

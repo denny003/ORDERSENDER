@@ -17,6 +17,8 @@ Commit consigliato:
    - Aggiornata la versione della cache del Service Worker a `offerte-agenti-v38` (`site/sw.js`).
    - Aggiunto parametro di cache-busting `?v=20261008-fix10` su `site/offerta.html`.
    - Aggiunto script di recupero rapido per forzare la cancellazione della vecchia cache corrotta.
+4. **Risolto errore durante il salvataggio / invio offerta su Google Sheets:**
+   - In `netlify/functions/api.mjs`, all'interno della funzione `createDoc`, mancava la dichiarazione della variabile `total` che causava un `ReferenceError: total is not defined` (HTTP 500) quando l'agente premeva "Invia in azienda". Variabile ripristinata e validata.
 
 ### Istruzioni operative per l'utente:
 1. Effettuare il commit e push del repository su GitHub per innescare il deploy automatico di Netlify.

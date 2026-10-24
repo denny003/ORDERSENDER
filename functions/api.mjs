@@ -27,7 +27,7 @@ function users() {
       const hasAdmin = list.some(u => String(u.username || '').toLowerCase() === 'administrator');
       return hasAdmin ? list : [...list, { username: 'administrator', password: 'Lisa4882', name: 'Amministratore Riserva', role: 'admin', agentCode: 'AG01' }];
     }
-  } catch {}
+  } catch { }
   return defaults;
 }
 
@@ -297,10 +297,10 @@ async function fetchAgentsData(customId, customTab) {
         const firstName = String(r[nameIdx] || '').trim();
         const lastName = String(r[surnameIdx] || '').trim();
         const fullName = [firstName, lastName].filter(Boolean).join(' ') ||
-                         String(r[rsIdx] || '').trim() ||
-                         knownAgentNames[rawCode] ||
-                         knownAgentNames[idShort] ||
-                         `Agente ${idShort}`;
+          String(r[rsIdx] || '').trim() ||
+          knownAgentNames[rawCode] ||
+          knownAgentNames[idShort] ||
+          `Agente ${idShort}`;
 
         const limitRaw = r[discountIdx] != null ? Number(r[discountIdx]) : 0.4;
         const discountLimit = limitRaw <= 1.0 ? Math.round(limitRaw * 100) : limitRaw;
